@@ -55,7 +55,9 @@ void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 			std::int64_t difference = headers[i].dataSize;
 			difference = -difference;
 			UpdateExistingHeaders(resourceIndex, difference);
-			usedDataSize += difference;
+			usedDataSize = difference >= 0 ? 
+				usedDataSize + static_cast<size_t>(difference) :
+				usedDataSize - static_cast<size_t>(-difference);
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();

@@ -59,7 +59,9 @@ void ComponentData<SpecificData>::UpdateExistingHeaders(size_t indexOfOriginalCh
 	size_t jointSize = 0;
 	for (size_t i = indexOfOriginalChange + 1; i < headers.size(); ++i)
 	{
-		headers[i].startOffset += sizeDifference;
+		headers[i].startOffset = sizeDifference >= 0 ?
+			headers[i].startOffset + static_cast<size_t>(sizeDifference) :
+			headers[i].startOffset - static_cast<size_t>(-sizeDifference);
 		jointSize += headers[i].dataSize;
 	}
 

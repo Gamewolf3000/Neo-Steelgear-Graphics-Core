@@ -36,7 +36,7 @@ void Texture2DComponentData::SetSubresourceHeaders(size_t firstIndex,
 		subresourceHeaders[firstIndex + i].startOffset = currentOffset;
 		subresourceHeaders[firstIndex + i].width = footprint.Footprint.Width;
 		subresourceHeaders[firstIndex + i].height = footprint.Footprint.Height;
-		currentOffset += totalBytes;
+		currentOffset += static_cast<size_t>(totalBytes);
 	}
 }
 
@@ -137,7 +137,10 @@ void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
 			dataDifference = -dataDifference;
 			UpdateExistingSubresourceHeaders(resourceIndex, subresourceDifference);
 			UpdateExistingHeaders(resourceIndex, dataDifference);
-			usedDataSize += dataDifference;
+			usedDataSize = dataDifference >= 0 ?
+				usedDataSize + static_cast<size_t>(dataDifference) :
+				usedDataSize - static_cast<size_t>(-dataDifference);
+
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();

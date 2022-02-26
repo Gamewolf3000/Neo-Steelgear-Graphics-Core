@@ -247,8 +247,8 @@ size_t ResourceUploader::UploadResource(ID3D12Resource* toUploadTo,
 	device->GetCopyableFootprints(&resourceDesc, subresource, 1, 0, &footprint,
 		&numRows, &rowSizeInBytes, &totalBytes);
 
-	size_t chunkIndex = uploadChunks.AllocateChunk(totalBytes, 
-		allocationStrategy, alignment);
+	size_t chunkIndex = uploadChunks.AllocateChunk(
+		static_cast<size_t>(totalBytes), allocationStrategy, alignment);
 
 	if (chunkIndex == size_t(-1))
 		return size_t(-1);
@@ -261,7 +261,8 @@ size_t ResourceUploader::UploadResource(ID3D12Resource* toUploadTo,
 	for (UINT row = 0; row < numRows; ++row)
 	{
 		std::memcpy(mappedPtr + destinationOffset, 
-			static_cast<unsigned char*>(data) + sourceOffset, rowSizeInBytes);
+			static_cast<unsigned char*>(data) + sourceOffset, 
+			static_cast<size_t>(rowSizeInBytes));
 		sourceOffset += rowSizeInBytes;
 		destinationOffset += footprint.Footprint.RowPitch;
 	}

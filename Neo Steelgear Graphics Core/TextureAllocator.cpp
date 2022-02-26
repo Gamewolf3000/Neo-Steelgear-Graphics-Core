@@ -91,8 +91,9 @@ size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info)
 	D3D12_RESOURCE_DESC desc = CreateTextureDesc(info);
 	auto resourceInfo = device->GetResourceAllocationInfo(0, 1, &desc);
 
-	size_t textureEntryIndex = textures.AllocateChunk(resourceInfo.SizeInBytes,
-		AllocationStrategy::FIRST_FIT, resourceInfo.Alignment);
+	size_t textureEntryIndex = textures.AllocateChunk(
+		static_cast<size_t>(resourceInfo.SizeInBytes),
+		AllocationStrategy::FIRST_FIT, static_cast<size_t>(resourceInfo.Alignment));
 
 	if (textureEntryIndex != size_t(-1))
 	{
@@ -161,7 +162,8 @@ void TextureAllocator::UpdateMappedTexture(size_t index, void* data,
 	for (UINT row = 0; row < numRows; ++row)
 	{
 		std::memcpy(mappedPtr + destinationOffset,
-			static_cast<unsigned char*>(data) + sourceOffset, rowSizeInBytes);
+			static_cast<unsigned char*>(data) + sourceOffset, 
+			static_cast<size_t>(rowSizeInBytes));
 		sourceOffset += rowSizeInBytes;
 		destinationOffset += footprint.Footprint.RowPitch;
 	}
