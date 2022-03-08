@@ -54,3 +54,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapDSV(
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch DSV heap from incompatible component");
 }
+
+size_t ResourceComponent::NrOfDescriptors()
+{
+	if (descriptorAllocators.size() == 0)
+		return 0;
+
+	return descriptorAllocators[0].NrOfStoredDescriptors(); // All have the same number
+}

@@ -63,4 +63,6 @@ public:
 	void DeallocateDescriptor(size_t index);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle(size_t index);
+
+	size_t NrOfStoredDescriptors();
 };

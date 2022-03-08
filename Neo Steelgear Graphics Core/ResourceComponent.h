@@ -128,4 +128,6 @@ public:
 		ResourceIndex indexOffset = 0);
 
 	virtual bool HasDescriptorsOfType(ViewType type) = 0;
+
+	size_t NrOfDescriptors();
 };

@@ -172,3 +172,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetDescriptorHandle(
 
 	return toReturn;
 }
+
+size_t DescriptorAllocator::NrOfStoredDescriptors()
+{
+	return descriptors.TotalSize();
+}
