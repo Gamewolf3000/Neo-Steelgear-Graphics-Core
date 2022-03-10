@@ -131,11 +131,15 @@ public:
 
 	void RemoveComponent(ResourceIndex indexToRemove);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(ResourceIndex indexOffset = 0) override;
-	bool HasDescriptorsOfType(ViewType type) override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE 
+		GetDescriptorHeapCBV(ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE 
+		GetDescriptorHeapSRV(ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE
+		GetDescriptorHeapUAV(ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE 
+		GetDescriptorHeapRTV(ResourceIndex indexOffset = 0) const override;
+	bool HasDescriptorsOfType(ViewType type) const override;
 
 	BufferHandle GetBufferHandle(size_t index);
 

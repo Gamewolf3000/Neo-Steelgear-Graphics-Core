@@ -246,31 +246,31 @@ void BufferComponent::RemoveComponent(ResourceIndex indexToRemove)
 	bufferAllocator.DeallocateBuffer(indexToRemove);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapCBV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapCBV(
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[cbv.index].GetDescriptorHandle(indexOffset);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapSRV(
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[srv.index].GetDescriptorHandle(indexOffset);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapUAV(
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[uav.index].GetDescriptorHandle(indexOffset);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapRTV(
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[rtv.index].GetDescriptorHandle(indexOffset);
 }
 
-bool BufferComponent::HasDescriptorsOfType(ViewType type)
+bool BufferComponent::HasDescriptorsOfType(ViewType type) const
 {
 	switch (type)
 	{

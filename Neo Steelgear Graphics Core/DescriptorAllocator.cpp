@@ -161,8 +161,8 @@ void DescriptorAllocator::DeallocateDescriptor(size_t index)
 	descriptors.Remove(index);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetDescriptorHandle(
-	size_t index)
+const D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetDescriptorHandle(
+	size_t index) const
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE toReturn;
 	toReturn = heapData.heap->GetCPUDescriptorHandleForHeapStart();
@@ -173,7 +173,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetDescriptorHandle(
 	return toReturn;
 }
 
-size_t DescriptorAllocator::NrOfStoredDescriptors()
+size_t DescriptorAllocator::NrOfStoredDescriptors() const
 {
 	return descriptors.TotalSize();
 }

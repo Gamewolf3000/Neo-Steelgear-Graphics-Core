@@ -116,18 +116,18 @@ public:
 
 	virtual void RemoveComponent(ResourceIndex indexToRemove) = 0;
 
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
-		ResourceIndex indexOffset = 0);
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0);
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0);
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0);
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0);
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
+		ResourceIndex indexOffset = 0) const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
+		ResourceIndex indexOffset = 0) const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
+		ResourceIndex indexOffset = 0) const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
+		ResourceIndex indexOffset = 0) const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
+		ResourceIndex indexOffset = 0) const;
 
-	virtual bool HasDescriptorsOfType(ViewType type) = 0;
+	virtual bool HasDescriptorsOfType(ViewType type) const = 0;
 
-	size_t NrOfDescriptors();
+	size_t NrOfDescriptors() const;
 };

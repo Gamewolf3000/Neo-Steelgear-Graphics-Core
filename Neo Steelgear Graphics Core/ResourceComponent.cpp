@@ -20,42 +20,42 @@ void ResourceComponent::RemoveComponent(ResourceIndex indexToRemove)
 		descriptorAllocator.DeallocateDescriptor(indexToRemove);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapCBV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapCBV(
+	ResourceIndex indexOffset) const
 {
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch CBV heap from incompatible component");
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapSRV(
+	ResourceIndex indexOffset) const
 {
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch SRV heap from incompatible component");
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapUAV(
+	ResourceIndex indexOffset) const
 {
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch UAV heap from incompatible component");
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapRTV(
+	ResourceIndex indexOffset) const
 {
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch RTV heap from incompatible component");
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapDSV(
-	ResourceIndex indexOffset)
+const D3D12_CPU_DESCRIPTOR_HANDLE ResourceComponent::GetDescriptorHeapDSV(
+	ResourceIndex indexOffset) const
 {
 	(void)indexOffset;
 	throw std::runtime_error("Attempting to fetch DSV heap from incompatible component");
 }
 
-size_t ResourceComponent::NrOfDescriptors()
+size_t ResourceComponent::NrOfDescriptors() const
 {
 	if (descriptorAllocators.size() == 0)
 		return 0;

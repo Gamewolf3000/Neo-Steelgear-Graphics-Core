@@ -31,9 +31,9 @@ public:
 
 	T& operator[](size_t index);
 
-	size_t ActiveSize();
-	size_t TotalSize();
-	bool CheckIfActive(size_t index);
+	size_t ActiveSize() const;
+	size_t TotalSize() const;
+	bool CheckIfActive(size_t index) const;
 
 	void Clear();
 };
@@ -134,19 +134,19 @@ inline T& StableVector<T>::operator[](size_t index)
 }
 
 template<typename T>
-inline size_t StableVector<T>::ActiveSize()
+inline size_t StableVector<T>::ActiveSize() const
 {
 	return nrOfActive;
 }
 
 template<typename T>
-inline size_t StableVector<T>::TotalSize()
+inline size_t StableVector<T>::TotalSize() const
 {
 	return elements.size();
 }
 
 template<typename T>
-inline bool StableVector<T>::CheckIfActive(size_t index)
+inline bool StableVector<T>::CheckIfActive(size_t index) const
 {
 	return elements[index].active;
 }

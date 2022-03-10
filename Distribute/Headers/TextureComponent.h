@@ -125,15 +125,15 @@ public:
 
 	void RemoveComponent(ResourceIndex indexToRemove);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0) override;
-	bool HasDescriptorsOfType(ViewType type) override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
+		ResourceIndex indexOffset = 0) const override;
+	bool HasDescriptorsOfType(ViewType type) const override;
 
 	TextureHandle GetTextureHandle(size_t index);
 
@@ -265,39 +265,41 @@ inline void TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::RemoveComponen
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[srv.index].GetDescriptorHandle(indexOffset);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[uav.index].GetDescriptorHandle(indexOffset);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[rtv.index].GetDescriptorHandle(indexOffset);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapDSV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return descriptorAllocators[dsv.index].GetDescriptorHandle(indexOffset);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
-inline bool TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::HasDescriptorsOfType(ViewType type)
+inline bool 
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::HasDescriptorsOfType(
+	ViewType type) const
 {
 	switch (type)
 	{

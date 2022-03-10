@@ -62,18 +62,18 @@ public:
 
 	void RemoveComponent(ResourceIndex indexToRemove) override;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0) override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0) override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
+		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
+		ResourceIndex indexOffset = 0) const override;
 
-	bool HasDescriptorsOfType(ViewType type) override;
+	bool HasDescriptorsOfType(ViewType type) const override;
 
 	void SwapFrame() override;
 };
@@ -129,41 +129,41 @@ FrameResourceComponent<Component, Frames, CreationOperation>::RemoveComponent(
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapCBV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return resourceComponents[this->activeFrame].GetDescriptorHeapCBV(indexOffset);
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return resourceComponents[this->activeFrame].GetDescriptorHeapSRV(indexOffset);
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return resourceComponents[this->activeFrame].GetDescriptorHeapUAV(indexOffset);
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return resourceComponents[this->activeFrame].GetDescriptorHeapRTV(indexOffset);
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline D3D12_CPU_DESCRIPTOR_HANDLE 
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
 FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapDSV(
-	ResourceIndex indexOffset)
+	ResourceIndex indexOffset) const
 {
 	return resourceComponents[this->activeFrame].GetDescriptorHeapDSV(indexOffset);
 }
@@ -171,7 +171,7 @@ FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapD
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline bool 
 FrameResourceComponent<Component, Frames, CreationOperation>::HasDescriptorsOfType(
-	ViewType type)
+	ViewType type) const
 {
 	return resourceComponents[this->activeFrame].HasDescriptorsOfType(type);
 }
