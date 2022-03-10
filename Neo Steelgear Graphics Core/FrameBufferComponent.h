@@ -52,6 +52,8 @@ public:
 	D3D12_RESOURCE_STATES GetCurrentState();
 	void ChangeToState(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState);
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(ResourceIndex index);
 };
 
 template<short Frames>
@@ -216,5 +218,18 @@ inline void FrameBufferComponent<Frames>::ChangeToState(
 			this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
 				newState));
 	}
+}
+
+template<short Frames>
+inline D3D12_GPU_VIRTUAL_ADDRESS 
+FrameBufferComponent<Frames>::GetVirtualAdress(ResourceIndex index)
+{
+	auto handle = 
+		this->resourceComponents[this->activeFrame].GetBufferHandle(index);
+	D3D12_GPU_VIRTUAL_ADDRESS toReturn = 
+		handle.resource->GetGPUVirtualAddress();
+	toReturn.ptr += handle.startOffset;
+
+	return toReturn;
 }
 
