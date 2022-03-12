@@ -228,7 +228,7 @@ FrameBufferComponent<Frames>::GetVirtualAdress(ResourceIndex index)
 		this->resourceComponents[this->activeFrame].GetBufferHandle(index);
 	D3D12_GPU_VIRTUAL_ADDRESS toReturn = 
 		handle.resource->GetGPUVirtualAddress();
-	toReturn.ptr += handle.startOffset;
+	toReturn += handle.startOffset;
 
 	return toReturn;
 }

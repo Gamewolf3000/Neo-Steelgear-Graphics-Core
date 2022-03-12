@@ -75,6 +75,8 @@ public:
 
 	bool HasDescriptorsOfType(ViewType type) const override;
 
+	size_t NrOfDescriptors() const override;
+
 	void SwapFrame() override;
 };
 
@@ -174,6 +176,12 @@ FrameResourceComponent<Component, Frames, CreationOperation>::HasDescriptorsOfTy
 	ViewType type) const
 {
 	return resourceComponents[this->activeFrame].HasDescriptorsOfType(type);
+}
+
+template<typename Component, FrameType Frames, typename CreationOperation>
+inline size_t FrameResourceComponent<Component, Frames, CreationOperation>::NrOfDescriptors() const
+{
+	return resourceComponents[this->activeFrame].NrOfDescriptors();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
