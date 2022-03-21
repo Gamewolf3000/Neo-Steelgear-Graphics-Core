@@ -54,7 +54,7 @@ void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 
 			std::int64_t difference = headers[i].dataSize;
 			difference = -difference;
-			UpdateExistingHeaders(resourceIndex, difference);
+			UpdateExistingHeaders(i, difference);
 			usedDataSize = difference >= 0 ? 
 				usedDataSize + static_cast<size_t>(difference) :
 				usedDataSize - static_cast<size_t>(-difference);

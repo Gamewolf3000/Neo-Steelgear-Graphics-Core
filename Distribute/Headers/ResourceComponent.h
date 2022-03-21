@@ -129,5 +129,5 @@ public:
 
 	virtual bool HasDescriptorsOfType(ViewType type) const = 0;
 
-	size_t NrOfDescriptors() const;
+	virtual size_t NrOfDescriptors() const;
 };
