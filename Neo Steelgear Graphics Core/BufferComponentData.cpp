@@ -61,6 +61,7 @@ void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();
+			return;
 		}
 	}
 }
@@ -144,8 +145,13 @@ void BufferComponentData::UpdateComponentResources(
 
 		--headers[i].specifics.framesLeft;
 
+		// Ändra detta till att räkna upp hur många som borde tas bort, och ta sedan bort de efter loopen, fixar problemet med varannan
+
 		// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
 		if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
+		{
 			RemoveComponent(headers[i].resourceIndex);
+			--i;
+		}
 	}
 }

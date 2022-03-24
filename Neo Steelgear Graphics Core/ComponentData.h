@@ -65,10 +65,17 @@ void ComponentData<SpecificData>::UpdateExistingHeaders(size_t indexOfOriginalCh
 		jointSize += headers[i].dataSize;
 	}
 
+	//unsigned char* destination = data.data();
+	//destination += headers[indexOfOriginalChange].startOffset;
+	//destination += headers[indexOfOriginalChange].dataSize;
+	//unsigned char* source = destination - sizeDifference;
 	unsigned char* destination = data.data();
 	destination += headers[indexOfOriginalChange].startOffset;
 	destination += headers[indexOfOriginalChange].dataSize;
-	unsigned char* source = destination - sizeDifference;
+	unsigned char* source = destination;
+	destination = sizeDifference >= 0 ?
+		destination + static_cast<size_t>(sizeDifference) :
+		destination - static_cast<size_t>(-sizeDifference);
 	std::memmove(destination, source, jointSize);
 }
 

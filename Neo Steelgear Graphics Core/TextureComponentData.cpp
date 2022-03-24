@@ -6,9 +6,24 @@ void Texture2DComponentData::UpdateExistingSubresourceHeaders(
 	for (size_t i = indexOfOriginalChange + 1; i < headers.size(); ++i)
 		headers[i].specifics.startSubresource += entryDifference;
 
+	//SubresourceHeader* destination = subresourceHeaders.data();
+	//destination += headers[indexOfOriginalChange].specifics.nrOfSubresources;
+	//SubresourceHeader* source = destination - entryDifference;
+	//size_t originalEntryEnd =
+	//	headers[indexOfOriginalChange].specifics.startSubresource +
+	//	headers[indexOfOriginalChange].specifics.nrOfSubresources;
+	//size_t totalEntriesToMove = subresourceHeaders.size() - originalEntryEnd;
+
+	//if (subresourceHeaders.size() + entryDifference > subresourceHeaders.capacity())
+	//	subresourceHeaders.resize(subresourceHeaders.size() + entryDifference);
+
+	//std::memmove(destination, source, totalEntriesToMove);
+
 	SubresourceHeader* destination = subresourceHeaders.data();
+	destination += headers[indexOfOriginalChange].specifics.startSubresource;
 	destination += headers[indexOfOriginalChange].specifics.nrOfSubresources;
-	SubresourceHeader* source = destination - entryDifference;
+	SubresourceHeader* source = destination;
+	destination += entryDifference;
 	size_t originalEntryEnd =
 		headers[indexOfOriginalChange].specifics.startSubresource +
 		headers[indexOfOriginalChange].specifics.nrOfSubresources;
@@ -17,7 +32,7 @@ void Texture2DComponentData::UpdateExistingSubresourceHeaders(
 	if (subresourceHeaders.size() + entryDifference > subresourceHeaders.capacity())
 		subresourceHeaders.resize(subresourceHeaders.size() + entryDifference);
 
-	std::memmove(destination, source, totalEntriesToMove);
+	std::memmove(destination, source, totalEntriesToMove * sizeof(SubresourceHeader));
 }
 
 void Texture2DComponentData::SetSubresourceHeaders(size_t firstIndex,
@@ -144,6 +159,8 @@ void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();
+			subresourceHeaders.pop_back();
+			return;
 		}
 	}
 }
@@ -268,7 +285,10 @@ void Texture2DComponentData::UpdateComponentResources(
 
 		// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
 		if (type == UpdateType::INITIALISE_ONLY && !headers[i].specifics.needUpdating)
+		{
 			RemoveComponent(headers[i].resourceIndex);
+			--i;
+		}
 	}
 }
 
