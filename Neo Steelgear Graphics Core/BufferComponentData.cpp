@@ -25,7 +25,10 @@ void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
 		if (type == UpdateType::INITIALISE_ONLY)
 		{
 			if (usedDataSize + dataSize > data.capacity())
+			{
+				data.reserve(usedDataSize + dataSize);
 				data.resize(usedDataSize + dataSize); // Resize so new data fits
+			}
 
 			usedDataSize += dataSize;
 		}
