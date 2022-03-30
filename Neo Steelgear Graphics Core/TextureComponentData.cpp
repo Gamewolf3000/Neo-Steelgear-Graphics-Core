@@ -179,6 +179,7 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 		size_t subresourceSlot = headers[resourceIndex].specifics.startSubresource;
 		subresourceSlot += subresource;
 		unsigned char* destination = data.data();
+		destination += headers[resourceIndex].startOffset;
 		destination += subresourceHeaders[subresourceSlot].startOffset;
 		size_t dataSize = subresourceHeaders[subresourceSlot].width *
 			subresourceHeaders[subresourceSlot].height * texelSizeInBytes;
@@ -197,6 +198,7 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 			size_t subresourceSlot = header.specifics.startSubresource;
 			subresourceSlot += subresource;
 			unsigned char* destination = data.data();
+			destination += header.startOffset;
 			destination += subresourceHeaders[subresourceSlot].startOffset;
 			size_t dataSize = subresourceHeaders[subresourceSlot].width *
 				subresourceHeaders[subresourceSlot].height * texelSizeInBytes;
