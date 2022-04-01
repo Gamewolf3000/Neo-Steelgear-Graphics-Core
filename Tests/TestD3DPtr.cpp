@@ -1,7 +1,5 @@
 #include "pch.h"
 
-#include <d3d12.h>
-
 #include "../Neo Steelgear Graphics Core/D3DPtr.h"
 
 class DummyInterface : public IUnknown
