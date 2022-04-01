@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory>
+#include <Unknwn.h>
 
 template<typename T>
 class D3DPtr
