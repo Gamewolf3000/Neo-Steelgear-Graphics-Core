@@ -240,19 +240,16 @@ TEST(StableVectorTest, MoveConstructsCorrectly)
 	StableVector<float> floatVectorToMoveTo(std::move(floatVectorToMoveFrom));
 	StableVector<std::string> stringVectorToMoveTo(std::move(stringVectorToMoveFrom));
 
-	ASSERT_EQ(intVectorToMoveFrom.ActiveSize(), 0);
-	ASSERT_EQ(intVectorToMoveFrom.TotalSize(), 0);
-	ASSERT_EQ(floatVectorToMoveFrom.ActiveSize(), 0);
-	ASSERT_EQ(floatVectorToMoveFrom.TotalSize(), 0);
-	ASSERT_EQ(stringVectorToMoveFrom.ActiveSize(), 0);
-	ASSERT_EQ(stringVectorToMoveFrom.TotalSize(), 0);
+	TestSizes(intVectorToMoveFrom, 0, 0);
+	TestSizes(floatVectorToMoveFrom, 0, 0);
+	TestSizes(stringVectorToMoveFrom, 0, 0);
 
-	ASSERT_EQ(intVectorToMoveTo.ActiveSize(), intVectorToCompareAgainst.ActiveSize());
-	ASSERT_EQ(floatVectorToMoveTo.ActiveSize(), floatVectorToCompareAgainst.ActiveSize());
-	ASSERT_EQ(stringVectorToMoveTo.ActiveSize(), stringVectorToCompareAgainst.ActiveSize());
-	ASSERT_EQ(intVectorToMoveTo.TotalSize(), intVectorToCompareAgainst.TotalSize());
-	ASSERT_EQ(floatVectorToMoveTo.TotalSize(), floatVectorToCompareAgainst.TotalSize());
-	ASSERT_EQ(stringVectorToMoveTo.TotalSize(), stringVectorToCompareAgainst.TotalSize());
+	TestSizes(intVectorToMoveTo, intVectorToCompareAgainst.ActiveSize(),
+		intVectorToCompareAgainst.TotalSize());
+	TestSizes(floatVectorToMoveTo, floatVectorToCompareAgainst.ActiveSize(),
+		floatVectorToCompareAgainst.TotalSize());
+	TestSizes(stringVectorToMoveTo, stringVectorToCompareAgainst.ActiveSize(),
+		stringVectorToCompareAgainst.TotalSize());
 
 	for (i = 0; i < 1000; ++i)
 	{

@@ -30,6 +30,7 @@ public:
 	void Remove(size_t index);
 
 	T& operator[](size_t index);
+	const T& operator[](size_t index) const;
 
 	size_t ActiveSize() const;
 	size_t TotalSize() const;
@@ -129,6 +130,12 @@ inline void StableVector<T>::Remove(size_t index)
 
 template<typename T>
 inline T& StableVector<T>::operator[](size_t index)
+{
+	return elements[index].data;
+}
+
+template<typename T>
+inline const T& StableVector<T>::operator[](size_t index) const
 {
 	return elements[index].data;
 }

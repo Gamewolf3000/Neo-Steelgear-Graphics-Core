@@ -27,7 +27,6 @@ private:
 	{
 		ChunkStatus status = ChunkStatus::AVAILABLE;
 
-		size_t actualChunkStart = 0;
 		size_t startOffset = 0;
 		size_t chunkSize = 0;
 		T specificData = T();
@@ -66,9 +65,10 @@ public:
 	void AddChunk(size_t chunkSize, bool combine);
 
 	T& operator[](size_t index);
+	const T& operator[](size_t index) const;
 
-	size_t GetStartOfChunk(size_t index);
-	size_t TotalSize();
+	size_t GetStartOfChunk(size_t index) const;
+	size_t TotalSize() const;
 
 	void RemoveIf(std::function<bool(const T&)> toCheckWith);
 	void ClearHeap(size_t newSize = size_t(-1));
@@ -77,14 +77,14 @@ public:
 template<typename T>
 inline void HeapHelper<T>::CombineAdjacentChunks(size_t chunkIndex)
 {
-	size_t defragStart = chunks[chunkIndex].actualChunkStart;
+	size_t defragStart = chunks[chunkIndex].startOffset;
 	size_t defragNext = defragStart + chunks[chunkIndex].chunkSize;
 
 	for (size_t i = 0; i < chunks.TotalSize(); ++i)
 	{
 		if (chunks.CheckIfActive(i) && chunks[i].status == ChunkStatus::AVAILABLE)
 		{
-			size_t currentStart = chunks[i].actualChunkStart;
+			size_t currentStart = chunks[i].startOffset;
 			size_t currentNext = currentStart + chunks[i].chunkSize;
 
 			if (currentStart == defragNext || defragStart == currentNext)
@@ -93,7 +93,7 @@ inline void HeapHelper<T>::CombineAdjacentChunks(size_t chunkIndex)
 				size_t indexOfSecond = currentStart == defragNext ? i : chunkIndex;
 
 				chunks[indexOfFirst].chunkSize += chunks[indexOfSecond].chunkSize;
-				chunks[indexOfSecond].actualChunkStart = size_t(-1);
+				chunks[indexOfSecond].startOffset = size_t(-1);
 				chunks[indexOfSecond].chunkSize = 0;
 				chunks.Remove(indexOfSecond);
 
@@ -111,9 +111,16 @@ inline size_t HeapHelper<T>::FindFirstFit(size_t dataSize, size_t alignment)
 	{
 		if (chunks.CheckIfActive(i) && chunks[i].status == ChunkStatus::AVAILABLE)
 		{
-			size_t alignedAdress = Align(chunks[i].actualChunkStart, alignment);
+			size_t alignedAdress = Align(chunks[i].startOffset, alignment);
+
+			if (alignedAdress - chunks[i].startOffset >=
+				chunks[i].chunkSize)
+			{
+				continue;
+			}
+
 			size_t alignedSize = chunks[i].chunkSize -
-				(alignedAdress - chunks[i].actualChunkStart);
+				(alignedAdress - chunks[i].startOffset);
 
 			if (alignedSize >= dataSize)
 				return i;
@@ -133,9 +140,16 @@ inline size_t HeapHelper<T>::FindBestFit(size_t dataSize, size_t alignment)
 	{
 		if (chunks.CheckIfActive(i) && chunks[i].status == ChunkStatus::AVAILABLE)
 		{
-			size_t alignedAdress = Align(chunks[i].actualChunkStart, alignment);
+			size_t alignedAdress = Align(chunks[i].startOffset, alignment);
+
+			if (alignedAdress - chunks[i].startOffset >=
+				chunks[i].chunkSize)
+			{
+				continue;
+			}
+
 			size_t alignedSize = chunks[i].chunkSize -
-				(alignedAdress - chunks[i].actualChunkStart);
+				(alignedAdress - chunks[i].startOffset);
 
 			if (alignedSize >= dataSize && chunks[i].chunkSize < bestSize)
 			{
@@ -151,26 +165,33 @@ inline size_t HeapHelper<T>::FindBestFit(size_t dataSize, size_t alignment)
 template<typename T>
 inline size_t HeapHelper<T>::FindWorstFit(size_t dataSize, size_t alignment)
 {
-	size_t bestIndex = size_t(-1);
-	size_t worstSize = size_t(-1);
+	size_t worstIndex = size_t(-1);
+	size_t worstSize = 0;
 
 	for (size_t i = 0; i < chunks.TotalSize(); ++i)
 	{
 		if (chunks.CheckIfActive(i) && chunks[i].status == ChunkStatus::AVAILABLE)
 		{
-			size_t alignedAdress = Align(chunks[i].actualChunkStart, alignment);
+			size_t alignedAdress = Align(chunks[i].startOffset, alignment);
+
+			if (alignedAdress - chunks[i].startOffset >=
+				chunks[i].chunkSize)
+			{
+				continue;
+			}
+
 			size_t alignedSize = chunks[i].chunkSize -
-				(alignedAdress - chunks[i].actualChunkStart);
+				(alignedAdress - chunks[i].startOffset);
 
 			if (alignedSize >= dataSize && chunks[i].chunkSize > worstSize)
 			{
-				bestIndex = i;
+				worstIndex = i;
 				worstSize = chunks[i].chunkSize;
 			}
 		}
 	}
 
-	return bestIndex;
+	return worstIndex;
 }
 
 template<typename T>
@@ -201,17 +222,34 @@ template<typename T>
 inline void HeapHelper<T>::SplitChunk(size_t dataSize, size_t alignment, 
 	size_t chunkIndex)
 {
-	Chunk remainder;
-	size_t alignedAdress = Align(chunks[chunkIndex].actualChunkStart, alignment);
-	remainder.startOffset = remainder.actualChunkStart = alignedAdress + dataSize;
-	size_t actualSize = alignedAdress - chunks[chunkIndex].actualChunkStart + dataSize;
-	remainder.chunkSize = chunks[chunkIndex].chunkSize - actualSize;
-	remainder.status = ChunkStatus::AVAILABLE;
-	remainder.specificData = T();
-	chunks.Add(std::move(remainder));
+	size_t alignedAdress = Align(chunks[chunkIndex].startOffset,
+		alignment);
+	size_t actualSize = alignedAdress - 
+		chunks[chunkIndex].startOffset + dataSize;
+
+	if (alignedAdress != chunks[chunkIndex].startOffset)
+	{
+		Chunk remainder;
+		remainder.startOffset = chunks[chunkIndex].startOffset;
+		remainder.chunkSize = alignedAdress - chunks[chunkIndex].startOffset;
+		remainder.status = ChunkStatus::AVAILABLE;
+		remainder.specificData = T();
+		chunks.Add(std::move(remainder));
+	}
+
+	if (chunks[chunkIndex].chunkSize - actualSize != 0)
+	{
+		Chunk remainder;
+		remainder.startOffset = alignedAdress + dataSize;
+		remainder.chunkSize = (chunks[chunkIndex].chunkSize + 
+			chunks[chunkIndex].startOffset) - remainder.startOffset;
+		remainder.status = ChunkStatus::AVAILABLE;
+		remainder.specificData = T();
+		chunks.Add(std::move(remainder));
+	}
 
 	chunks[chunkIndex].startOffset = alignedAdress;
-	chunks[chunkIndex].chunkSize = actualSize;
+	chunks[chunkIndex].chunkSize = dataSize;
 	chunks[chunkIndex].status = ChunkStatus::OCCUPIED;
 	chunks[chunkIndex].specificData = T();
 }
@@ -251,7 +289,7 @@ template<typename T>
 inline void HeapHelper<T>::Initialize(size_t heapSize)
 {
 	Chunk initialChunk;
-	initialChunk.startOffset = initialChunk.actualChunkStart = 0;
+	initialChunk.startOffset = 0;
 	initialChunk.chunkSize = heapSize;
 	initialChunk.specificData = T();
 	currentSize = heapSize;
@@ -262,7 +300,7 @@ template<typename T>
 inline void HeapHelper<T>::Initialize(size_t heapSize, const T& specifics)
 {
 	Chunk initialChunk;
-	initialChunk.startOffset = initialChunk.actualChunkStart = 0;
+	initialChunk.startOffset = 0;
 	initialChunk.chunkSize = heapSize;
 	initialChunk.specificData = specifics;
 	currentSize = heapSize;
@@ -299,7 +337,7 @@ inline void HeapHelper<T>::AddChunk(size_t chunkSize, bool combine)
 	Chunk toAdd;
 	toAdd.status = ChunkStatus::AVAILABLE;
 	toAdd.chunkSize = chunkSize;
-	toAdd.actualChunkStart = toAdd.startOffset = currentSize;
+	toAdd.startOffset = currentSize;
 
 	chunks.Add(std::move(toAdd));
 	currentSize += chunkSize;
@@ -315,13 +353,19 @@ inline T& HeapHelper<T>::operator[](size_t index)
 }
 
 template<typename T>
-inline size_t HeapHelper<T>::GetStartOfChunk(size_t index)
+inline const T& HeapHelper<T>::operator[](size_t index) const
+{
+	return chunks[index].specificData;
+}
+
+template<typename T>
+inline size_t HeapHelper<T>::GetStartOfChunk(size_t index) const
 {
 	return chunks[index].startOffset;
 }
 
 template<typename T>
-inline size_t HeapHelper<T>::TotalSize()
+inline size_t HeapHelper<T>::TotalSize() const
 {
 	return currentSize;
 }
@@ -347,7 +391,7 @@ inline void HeapHelper<T>::ClearHeap(size_t newSize)
 	currentSize = newSize == size_t(-1) ? currentSize : newSize;
 
 	Chunk newTotalChunk;
-	newTotalChunk.startOffset = newTotalChunk.actualChunkStart = 0;
+	newTotalChunk.startOffset = 0;
 	newTotalChunk.chunkSize = currentSize;
 	newTotalChunk.specificData = T();
 	chunks.Add(std::move(newTotalChunk));
