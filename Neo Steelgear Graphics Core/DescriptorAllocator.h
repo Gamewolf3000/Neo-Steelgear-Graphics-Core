@@ -33,8 +33,9 @@ private:
 	StableVector<StoredDescriptor> descriptors;
 
 	ID3D12DescriptorHeap* AllocateHeap(size_t nrOfDescriptors);
-	size_t GetFreeDescriptorIndex();
-	bool AllocationHelper(size_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle);
+	size_t GetFreeDescriptorIndex(size_t indexInHeap);
+	bool AllocationHelper(size_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle,
+		size_t indexInHeap);
 
 public:
 	DescriptorAllocator() = default;
@@ -50,15 +51,20 @@ public:
 		size_t nrOfDescriptors);
 
 	size_t AllocateSRV(ID3D12Resource* resource,
-		D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);
+		D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr, 
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateDSV(ID3D12Resource* resource,
-		D3D12_DEPTH_STENCIL_VIEW_DESC* desc = nullptr);
+		D3D12_DEPTH_STENCIL_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateRTV(ID3D12Resource* resource,
-		D3D12_RENDER_TARGET_VIEW_DESC* desc = nullptr);
+		D3D12_RENDER_TARGET_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateUAV(ID3D12Resource* resource,
 		D3D12_UNORDERED_ACCESS_VIEW_DESC* desc = nullptr,
-		ID3D12Resource* counterResource = nullptr);
-	size_t AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr);
+		ID3D12Resource* counterResource = nullptr, 
+		size_t indexInHeap = size_t(-1));
+	size_t AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 
 	void DeallocateDescriptor(size_t index);
 

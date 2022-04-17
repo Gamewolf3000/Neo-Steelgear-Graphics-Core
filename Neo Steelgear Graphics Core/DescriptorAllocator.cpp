@@ -20,20 +20,33 @@ ID3D12DescriptorHeap* DescriptorAllocator::AllocateHeap(size_t nrOfDescriptors)
 	return toReturn;
 }
 
-size_t DescriptorAllocator::GetFreeDescriptorIndex()
+size_t DescriptorAllocator::GetFreeDescriptorIndex(size_t indexInHeap)
 {
-	if (descriptors.ActiveSize() >= heapData.endIndex - heapData.startIndex)
+	if (descriptors.ActiveSize() >= heapData.endIndex - heapData.startIndex ||
+		indexInHeap >= heapData.endIndex - heapData.startIndex)
+	{
 		return size_t(-1);
+	}
 
-	size_t index = descriptors.Add(StoredDescriptor());
+	size_t index = size_t(-1);
+
+	if (indexInHeap == size_t(-1))
+	{
+		index = descriptors.Add(StoredDescriptor());
+	}
+	else
+	{
+		descriptors.Expand(indexInHeap); // Will guarantee that the index exists
+		index = descriptors.AddAt(StoredDescriptor(), indexInHeap);
+	}
 	
 	return index;
 }
 
 bool DescriptorAllocator::AllocationHelper(size_t& index,
-	D3D12_CPU_DESCRIPTOR_HANDLE& handle)
+	D3D12_CPU_DESCRIPTOR_HANDLE& handle, size_t indexInHeap)
 {
-	index = GetFreeDescriptorIndex();
+	index = GetFreeDescriptorIndex(indexInHeap);
 
 	if (index == size_t(-1))
 		return false;
@@ -79,6 +92,7 @@ void DescriptorAllocator::Initialize(const DescriptorInfo& descriptorInfo,
 	size_t nrOfDescriptors)
 {
 	device = deviceToUse;
+
 	heapData.heapOwned = false;
 	heapData.descriptorInfo = descriptorInfo;
 	heapData.startIndex = startIndex;
@@ -98,59 +112,61 @@ void DescriptorAllocator::Initialize(const DescriptorInfo& descriptorInfo,
 }
 
 size_t DescriptorAllocator::AllocateSRV(ID3D12Resource* resource, 
-	D3D12_SHADER_RESOURCE_VIEW_DESC* desc)
+	D3D12_SHADER_RESOURCE_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
 
-	if (AllocationHelper(index, handle))
+	if (AllocationHelper(index, handle, indexInHeap))
 		device->CreateShaderResourceView(resource, desc, handle);
 
 	return index;
 }
 
 size_t DescriptorAllocator::AllocateDSV(ID3D12Resource* resource, 
-	D3D12_DEPTH_STENCIL_VIEW_DESC* desc)
+	D3D12_DEPTH_STENCIL_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
 
-	if(AllocationHelper(index, handle))
+	if(AllocationHelper(index, handle, indexInHeap))
 		device->CreateDepthStencilView(resource, desc, handle);
 
 	return index;
 }
 
 size_t DescriptorAllocator::AllocateRTV(ID3D12Resource* resource, 
-	D3D12_RENDER_TARGET_VIEW_DESC* desc)
+	D3D12_RENDER_TARGET_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
 
-	if (AllocationHelper(index, handle))
+	if (AllocationHelper(index, handle, indexInHeap))
 		device->CreateRenderTargetView(resource, desc, handle);
 
 	return index;
 }
 
 size_t DescriptorAllocator::AllocateUAV(ID3D12Resource* resource, 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, ID3D12Resource* counterResource)
+	D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, ID3D12Resource* counterResource,
+	size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
 
-	if (AllocationHelper(index, handle))
+	if (AllocationHelper(index, handle, indexInHeap))
 		device->CreateUnorderedAccessView(resource, counterResource, desc, handle);
 
 	return index;
 }
 
-size_t DescriptorAllocator::AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc)
+size_t DescriptorAllocator::AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
+	size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
 
-	if (AllocationHelper(index, handle))
+	if (AllocationHelper(index, handle, indexInHeap))
 		device->CreateConstantBufferView(desc, handle);
 
 	return index;

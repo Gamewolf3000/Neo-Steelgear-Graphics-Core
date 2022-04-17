@@ -175,6 +175,23 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc)
 	return toReturn;
 }
 
+ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device,
+	D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, UINT nrOfDescriptors,
+	bool shaderVisible)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC desc;
+	desc.Type = descriptorType;
+	desc.NumDescriptors = nrOfDescriptors;
+	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE :
+		D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	desc.NodeMask = 0;
+
+	ID3D12DescriptorHeap* toReturn = nullptr;
+	HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&toReturn));
+
+	return hr == S_OK ? toReturn : nullptr;
+}
+
 ID3D12Fence* CreateFence(ID3D12Device* device, UINT64 initialValue,
 	D3D12_FENCE_FLAGS flags)
 {

@@ -36,6 +36,8 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback, UINT64 widt
 
 ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc);
 
+ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, UINT nrOfDescriptors, bool shaderVisible);
+
 ID3D12Fence* CreateFence(ID3D12Device* device, UINT64 initialValue,
 	D3D12_FENCE_FLAGS flags);
 
