@@ -202,6 +202,39 @@ TEST(StableVectorTest, ReusesIndicesCorrectly)
 	}
 }
 
+TEST(StableVectorTest, HandlesExplicitIndicesCorrectly)
+{
+	StableVector<int> intVector;
+	StableVector<float> floatVector;
+	StableVector<std::string> stringVector;
+
+	intVector.Expand(1000);
+	floatVector.Expand(1000);
+	stringVector.Expand(1000);
+
+	for (size_t i = 0; i < 1000; ++i)
+	{
+		size_t index = 999 - i;
+		ASSERT_EQ(intVector.AddAt(static_cast<int>(i), index), index);
+		ASSERT_EQ(floatVector.AddAt(static_cast<float>(i), index), index);
+		ASSERT_EQ(stringVector.AddAt(std::to_string(i), index), index);
+	}
+
+	for (size_t i = 0; i < 1000; ++i)
+	{
+		intVector.Remove(i);
+		floatVector.Remove(i);
+		stringVector.Remove(i);
+	}
+
+	for (size_t i = 0; i < 1000; i += 2)
+	{
+		ASSERT_EQ(intVector.AddAt(static_cast<int>(i), i), i);
+		ASSERT_EQ(floatVector.AddAt(static_cast<float>(i), i), i);
+		ASSERT_EQ(stringVector.AddAt(std::to_string(i), i), i);
+	}
+}
+
 TEST(StableVectorTest, MoveConstructsCorrectly)
 {
 	StableVector<int> intVectorToCompareAgainst;

@@ -36,7 +36,7 @@ size_t DescriptorAllocator::GetFreeDescriptorIndex(size_t indexInHeap)
 	}
 	else
 	{
-		descriptors.Expand(indexInHeap); // Will guarantee that the index exists
+		descriptors.Expand(indexInHeap + 1); // Will guarantee that the index exists
 		index = descriptors.AddAt(StoredDescriptor(), indexInHeap);
 	}
 	

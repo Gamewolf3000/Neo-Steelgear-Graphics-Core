@@ -30,9 +30,13 @@ IDXGIAdapter* GetAdapter();
 
 ID3D12Device* CreateDevice();
 
-ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size, bool readback);
+ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size, bool readback,
+	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
-ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback, UINT64 width, UINT height, UINT16 arraySize, UINT16 mipLevels, DXGI_FORMAT format);
+ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback, 
+	UINT64 width, UINT height, UINT16 arraySize = 1, UINT16 mipLevels = 1,
+	DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
+	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
 ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc);
 

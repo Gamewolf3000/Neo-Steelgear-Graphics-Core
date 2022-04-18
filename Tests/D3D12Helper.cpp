@@ -93,7 +93,7 @@ ID3D12Device* CreateDevice()
 }
 
 ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size,
-	bool readback)
+	bool readback, D3D12_RESOURCE_FLAGS flags)
 {
 	D3D12_RESOURCE_DESC desc;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -106,7 +106,7 @@ ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size,
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Flags = flags;
 
 	D3D12_HEAP_PROPERTIES heapProperties;
 	ZeroMemory(&heapProperties, sizeof(D3D12_HEAP_PROPERTIES));
@@ -125,8 +125,8 @@ ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size,
 }
 
 ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback,
-	UINT64 width, UINT height, UINT16 arraySize = 1, UINT16 mipLevels = 1,
-	DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM)
+	UINT64 width, UINT height, UINT16 arraySize, UINT16 mipLevels,
+	DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags)
 {
 	D3D12_RESOURCE_DESC resourceDesc;
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -139,7 +139,7 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback,
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.SampleDesc.Quality = 0;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resourceDesc.Flags = flags;
 
 	D3D12_HEAP_PROPERTIES heapProperties;
 	ZeroMemory(&heapProperties, sizeof(D3D12_HEAP_PROPERTIES));
