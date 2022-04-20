@@ -19,7 +19,7 @@ D3D12_RESOURCE_FLAGS ResourceAllocator::CreateBindFlag()
 }
 
 ID3D12Heap* ResourceAllocator::AllocateHeap(size_t size, bool uploadHeap,
-	ID3D12Device* device)
+	D3D12_HEAP_FLAGS flags, ID3D12Device* device)
 {
 	D3D12_HEAP_TYPE heapType = uploadHeap ? D3D12_HEAP_TYPE_UPLOAD :
 		D3D12_HEAP_TYPE_DEFAULT;
@@ -32,7 +32,7 @@ ID3D12Heap* ResourceAllocator::AllocateHeap(size_t size, bool uploadHeap,
 	desc.Properties.CreationNodeMask = 0;
 	desc.Properties.VisibleNodeMask = 0;
 	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-	desc.Flags = D3D12_HEAP_FLAG_NONE;
+	desc.Flags = flags;
 
 	ID3D12Heap* toReturn;
 	HRESULT hr = device->CreateHeap(&desc, IID_PPV_ARGS(&toReturn));

@@ -39,20 +39,6 @@ void FillBufferData(int arr[], int startIndex, int nrOfValues)
 		arr[i + startIndex] = i;
 }
 
-void CheckResourceData(ID3D12Resource* resource, UINT subresource,
-	int data[], int startIndex, int stopIndex)
-{
-	int* mapped = nullptr;
-	HRESULT hr = resource->Map(subresource, nullptr, 
-		reinterpret_cast<void**>(&mapped));
-
-	if (FAILED(hr))
-		throw std::runtime_error("Mapping readback buffer failed!");
-
-	for (int i = startIndex; i < stopIndex; ++i)
-		ASSERT_EQ(mapped[i], data[i]);
-}
-
 void PrepareForNextBatch(SimpleCommandStructure& commandStructure,
 	ID3D12Resource* targetResource)
 {
@@ -84,7 +70,8 @@ void ExecuteBufferCopy(SimpleCommandStructure& commandStructure,
 		targetBuffer, 0, sizeof(int) * nrOfInts);
 	ExecuteGraphicsCommandList(commandStructure.list, commandStructure.queue);
 	FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
-	CheckResourceData(readbackBuffer, 0, data, 0, nrOfInts);
+	CheckResourceData(readbackBuffer, 0, reinterpret_cast<unsigned char*>(data),
+		0, nrOfInts * 4);
 }
 
 TEST(ResourceUploaderTest, HandlesSimpleBufferUploads)

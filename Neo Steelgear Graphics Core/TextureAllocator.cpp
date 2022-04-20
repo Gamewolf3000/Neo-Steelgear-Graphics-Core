@@ -81,7 +81,10 @@ void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse,
 	textureInfo = textureInfoToUse;
 	textures.Initialize(heapSize);
 	heapData.heapOwned = true;
-	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, device);
+	D3D12_HEAP_FLAGS heapFlag = allowedViews.dsv || allowedViews.rtv ?
+		D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES :
+		D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, heapFlag, device);
 	heapData.startOffset = 0;
 	heapData.endOffset = heapSize;
 }

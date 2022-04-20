@@ -90,7 +90,8 @@ void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse,
 	currentState = mappedUpdateable ? D3D12_RESOURCE_STATE_GENERIC_READ :
 		D3D12_RESOURCE_STATE_COMMON;
 	heapData.heapOwned = true;
-	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, device);
+	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, 
+		D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS, device);
 	heapData.startOffset = 0;
 	heapData.endOffset = heapSize;
 	resource = AllocateResource(heapSize, device);

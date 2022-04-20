@@ -192,6 +192,21 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device,
 	return hr == S_OK ? toReturn : nullptr;
 }
 
+ID3D12Heap* CreateResourceHeap(ID3D12Device* device, UINT64 heapSize,
+	D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flags)
+{
+	D3D12_HEAP_DESC desc;
+	desc.SizeInBytes = heapSize;
+	ZeroMemory(&desc.Properties, sizeof(D3D12_HEAP_PROPERTIES));
+	desc.Properties.Type = type;
+	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	desc.Flags = flags;
+
+	ID3D12Heap* toReturn = nullptr;
+	HRESULT hr = device->CreateHeap(&desc, IID_PPV_ARGS(&toReturn));
+	return hr == S_OK ? toReturn : nullptr;
+}
+
 ID3D12Fence* CreateFence(ID3D12Device* device, UINT64 initialValue,
 	D3D12_FENCE_FLAGS flags)
 {
@@ -306,4 +321,18 @@ void ExecuteGraphicsCommandList(ID3D12GraphicsCommandList* list, ID3D12CommandQu
 	ThrowIfFailed(hr, errorInfo);
 	ID3D12CommandList* temp = list;
 	queue->ExecuteCommandLists(1, &temp);
+}
+
+void CheckResourceData(ID3D12Resource* resource, UINT subresource,
+	unsigned char data[], int startIndex, int stopIndex)
+{
+	unsigned char* mapped = nullptr;
+	HRESULT hr = resource->Map(subresource, nullptr,
+		reinterpret_cast<void**>(&mapped));
+
+	if (FAILED(hr))
+		throw std::runtime_error("Mapping readback buffer failed!");
+
+
+	ASSERT_EQ(memcmp(mapped + startIndex, data, stopIndex - startIndex), 0);
 }

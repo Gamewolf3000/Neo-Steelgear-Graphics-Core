@@ -67,5 +67,5 @@ public:
 	D3D12_RESOURCE_STATES GetCurrentState();
 
 	void UpdateMappedBuffer(size_t index, void* data); // Map/Unmap method
-	size_t DefragResources(ID3D12GraphicsCommandList* list);
+	//size_t DefragResources(ID3D12GraphicsCommandList* list);
 };

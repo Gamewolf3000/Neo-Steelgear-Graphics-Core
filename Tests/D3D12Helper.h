@@ -42,6 +42,8 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc)
 
 ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, UINT nrOfDescriptors, bool shaderVisible);
 
+ID3D12Heap* CreateResourceHeap(ID3D12Device* device, UINT64 heapSize, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flags);
+
 ID3D12Fence* CreateFence(ID3D12Device* device, UINT64 initialValue,
 	D3D12_FENCE_FLAGS flags);
 
@@ -60,3 +62,6 @@ void FlushCommandQueue(UINT64& currentFenceValue, ID3D12CommandQueue* queue,
 
 void ExecuteGraphicsCommandList(ID3D12GraphicsCommandList* list,
 	ID3D12CommandQueue* queue);
+
+void CheckResourceData(ID3D12Resource* resource, UINT subresource,
+	unsigned char data[], int startIndex, int stopIndex);

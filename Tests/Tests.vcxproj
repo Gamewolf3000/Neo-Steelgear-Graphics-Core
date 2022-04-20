@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D3D12Helper.cpp" />
+    <ClCompile Include="TestBufferAllocator.cpp" />
     <ClCompile Include="TestD3DPtr.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
