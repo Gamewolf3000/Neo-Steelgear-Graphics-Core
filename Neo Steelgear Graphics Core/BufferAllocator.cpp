@@ -62,7 +62,9 @@ void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse,
 	size_t endOffset)
 {
 	ResourceAllocator::Initialize(allowedViews);
-	this->bufferInfo = bufferInfoToUse;
+	bufferInfo = bufferInfoToUse;
+	bufferInfo.elementSize = ((bufferInfo.elementSize +
+		(bufferInfo.alignment - 1)) & ~(bufferInfo.alignment - 1));
 	buffers.Initialize(endOffset - startOffset);
 	currentState = D3D12_RESOURCE_STATE_COMMON;
 	heapData.heapOwned = false;
@@ -85,7 +87,9 @@ void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse,
 	const AllowedViews& allowedViews, size_t heapSize)
 {
 	ResourceAllocator::Initialize(allowedViews);
-	this->bufferInfo = bufferInfoToUse;
+	bufferInfo = bufferInfoToUse;
+	bufferInfo.elementSize = ((bufferInfo.elementSize + 
+		(bufferInfo.alignment - 1)) & ~(bufferInfo.alignment - 1));
 	buffers.Initialize(heapSize);
 	currentState = mappedUpdateable ? D3D12_RESOURCE_STATE_GENERIC_READ :
 		D3D12_RESOURCE_STATE_COMMON;

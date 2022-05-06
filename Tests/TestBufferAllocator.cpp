@@ -22,10 +22,10 @@ TEST(BufferAllocatorTest, RuntimeInitialisable)
 		{4, 8}, {64, 64}, {32, 128}, {2, 256}, {4, 4}, {8, 32}, {1024, 4096} };
 
 	std::vector<AllowedViews> ViewCombinations = { {false, false, false, false}, 
-	{true, false, false, false}, {false, true, false, false},
-	{false, false, true, false}, {true, true, false, false},
-	{true, false, true, false}, {false, true, true, false},
-	{true, true, true, false}};
+		{true, false, false, false}, {false, true, false, false},
+		{false, false, true, false}, {true, true, false, false},
+		{true, false, true, false}, {false, true, true, false},
+		{true, true, true, false}};
 
 	for (unsigned int bufferMultiplier = 1; bufferMultiplier < 11;
 		bufferMultiplier++)

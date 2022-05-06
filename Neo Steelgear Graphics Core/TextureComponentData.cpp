@@ -136,10 +136,10 @@ void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
 		subresourceDifference = -subresourceDifference;
 		std::int64_t dataDifference = headers[resourceIndex].dataSize;
 		dataDifference = -dataDifference;
-		headers[resourceIndex].specifics.nrOfSubresources = 0;
-		headers[resourceIndex].dataSize = 0;
 		UpdateExistingSubresourceHeaders(resourceIndex, subresourceDifference);
 		UpdateExistingHeaders(resourceIndex, dataDifference);
+		headers[resourceIndex].specifics.nrOfSubresources = 0;
+		headers[resourceIndex].dataSize = 0;
 	}
 	else
 	{

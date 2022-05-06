@@ -64,22 +64,26 @@ D3D12_RENDER_TARGET_VIEW_DESC BufferComponent::CreateRTV(
 	return toReturn;
 }
 
-bool BufferComponent::CreateViews(const BufferReplacementViews& replacements, const BufferHandle& handle)
+bool BufferComponent::CreateViews(const BufferReplacementViews& replacements,
+	const BufferHandle& handle, ResourceIndex& resourceIndex)
 {
 	if (cbv.index != std::uint8_t(-1))
 	{
 		auto desc = CreateCBV(replacements.cb != std::nullopt ? *replacements.cb :
 			cbv.desc, handle);
-		if (descriptorAllocators[cbv.index].AllocateCBV(&desc) == size_t(-1))
+		if (descriptorAllocators[cbv.index].AllocateCBV(&desc, resourceIndex) ==
+			size_t(-1))
+		{
 			return false;
+		}
 	}
 
 	if (srv.index != std::uint8_t(-1))
 	{
 		auto desc = CreateSRV(replacements.sr != std::nullopt ? *replacements.sr :
 			srv.desc, handle);
-		if (descriptorAllocators[srv.index].AllocateSRV(handle.resource, &desc) ==
-			size_t(-1))
+		if (descriptorAllocators[srv.index].AllocateSRV(
+			handle.resource, &desc, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -98,7 +102,7 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements, co
 		}
 
 		if (descriptorAllocators[uav.index].AllocateUAV(handle.resource, &desc,
-			counterResource) == size_t(-1))
+			counterResource, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -108,8 +112,8 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements, co
 	{
 		auto desc = CreateRTV(replacements.rt != std::nullopt ? *replacements.rt :
 			rtv.desc, handle);
-		if (descriptorAllocators[rtv.index].AllocateRTV(handle.resource, &desc) ==
-			size_t(-1))
+		if (descriptorAllocators[rtv.index].AllocateRTV(
+			handle.resource, &desc, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -147,23 +151,39 @@ void BufferComponent::InitializeDescriptorAllocators(ID3D12Device* device,
 	for (size_t i = 0; i < descriptorInfo.size(); ++i)
 	{
 		auto& info = descriptorInfo[i];
+		D3D12_DESCRIPTOR_HEAP_TYPE descriptorType = 
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		switch (info.viewType)
+		{
+		case ViewType::RTV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			break;
+		case ViewType::DSV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+			break;
+		default:
+			break;
+		}
 
 		if (info.heapType == HeapType::EXTERNAL)
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.external;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.heap, allocationInfo.startIndex,
-				allocationInfo.nrOfDescriptors);
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				allocationInfo.heap, allocationInfo.startIndex, nrOfDescriptors);
 		}
 		else
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.owned;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.nrOfDescriptors);
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				nrOfDescriptors);
 		}
 	
 		switch (info.viewType)
@@ -231,7 +251,7 @@ ResourceIndex BufferComponent::CreateBuffer(size_t nrOfElements,
 		return toReturn;
 
 	BufferHandle handle = bufferAllocator.GetHandle(toReturn);
-	if (!CreateViews(replacementViews, handle))
+	if (!CreateViews(replacementViews, handle, toReturn))
 	{
 		bufferAllocator.DeallocateBuffer(toReturn);
 		return ResourceIndex(-1);
@@ -290,7 +310,7 @@ bool BufferComponent::HasDescriptorsOfType(ViewType type) const
 	}
 }
 
-BufferHandle BufferComponent::GetBufferHandle(size_t index)
+BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& index)
 {
 	return bufferAllocator.GetHandle(index);
 }
@@ -300,8 +320,8 @@ D3D12_RESOURCE_STATES BufferComponent::GetCurrentState()
 	return bufferAllocator.GetCurrentState();
 }
 
-D3D12_RESOURCE_BARRIER BufferComponent::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
-	D3D12_RESOURCE_BARRIER_FLAGS flag)
+D3D12_RESOURCE_BARRIER BufferComponent::CreateTransitionBarrier(
+	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
 	return bufferAllocator.CreateTransitionBarrier(newState, flag);
 }

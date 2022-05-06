@@ -24,12 +24,9 @@ TEST(DescriptorAllocatorTest, RuntimeInitialisable)
 
 	for (auto& type : heapTypes)
 	{
-		DescriptorInfo info;
-		info.descriptorSize = device->GetDescriptorHandleIncrementSize(type);
-		info.type = type;
 
 		DescriptorAllocator descriptorAllocator1;
-		descriptorAllocator1.Initialize(info, device, 1000);
+		descriptorAllocator1.Initialize(type, device, 1000);
 
 		ID3D12DescriptorHeap* descriptorHeap = CreateDescriptorHeap(device,
 			type, 3000, false);
@@ -37,7 +34,7 @@ TEST(DescriptorAllocatorTest, RuntimeInitialisable)
 			FAIL() << "Cannot proceed with tests as a descriptor heap could not be created";
 
 		DescriptorAllocator descriptorAllocator2;
-		descriptorAllocator2.Initialize(info, device, descriptorHeap, 1000, 1000);
+		descriptorAllocator2.Initialize(type, device, descriptorHeap, 1000, 1000);
 		descriptorHeap->Release();
 	}
 
@@ -113,13 +110,9 @@ TEST(DescriptorAllocatorTest, AllocatesCorrectlyCBV)
 	if (FAILED(hr))
 		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
 
-	DescriptorInfo info;
-	info.descriptorSize = device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	info.type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
 	DescriptorAllocator descriptorAllocator;
-	descriptorAllocator.Initialize(info, device, 1000);
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		device, 1000);
 
 	ID3D12Resource* resource = CreateBuffer(device, 256, false);
 	if (resource == nullptr)
@@ -147,13 +140,9 @@ TEST(DescriptorAllocatorTest, AllocatesCorrectlySRV)
 	if (FAILED(hr))
 		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
 
-	DescriptorInfo info;
-	info.descriptorSize = device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	info.type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
 	DescriptorAllocator descriptorAllocator;
-	descriptorAllocator.Initialize(info, device, 1000);
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
+		device, 1000);
 
 	ID3D12Resource* resource = CreateBuffer(device, 256, false);
 	if (resource == nullptr)
@@ -181,13 +170,9 @@ TEST(DescriptorAllocatorTest, AllocatesCorrectlyUAV)
 	if (FAILED(hr))
 		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
 
-	DescriptorInfo info;
-	info.descriptorSize = device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	info.type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
 	DescriptorAllocator descriptorAllocator;
-	descriptorAllocator.Initialize(info, device, 1000);
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		device, 1000);
 
 	ID3D12Resource* resource = CreateBuffer(device, 256, false, 
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -216,13 +201,8 @@ TEST(DescriptorAllocatorTest, AllocatesCorrectlyRTV)
 	if (FAILED(hr))
 		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
 
-	DescriptorInfo info;
-	info.descriptorSize = device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	info.type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-
 	DescriptorAllocator descriptorAllocator;
-	descriptorAllocator.Initialize(info, device, 1000);
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, device, 1000);
 
 	ID3D12Resource* resource = CreateTexture2D(device, false, 256, 256, 1, 1,
 		DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -251,13 +231,8 @@ TEST(DescriptorAllocatorTest, ReallocatesCorrectly)
 	if (FAILED(hr))
 		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
 
-	DescriptorInfo info;
-	info.descriptorSize = device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	info.type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-
 	DescriptorAllocator descriptorAllocator;
-	descriptorAllocator.Initialize(info, device, 1000);
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, device, 1000);
 
 	ID3D12Resource* resource = CreateTexture2D(device, false, 256, 256, 1, 1,
 		DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);

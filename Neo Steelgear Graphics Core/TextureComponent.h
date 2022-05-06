@@ -176,14 +176,27 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeDescriptorAlloca
 	for (size_t i = 0; i < descriptorInfo.size(); ++i)
 	{
 		auto& info = descriptorInfo[i];
+		D3D12_DESCRIPTOR_HEAP_TYPE descriptorType = 
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		switch (info.viewType)
+		{
+		case ViewType::RTV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			break;
+		case ViewType::DSV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+			break;
+		default:
+			break;
+		}
 
 		if (info.heapType == HeapType::EXTERNAL)
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.external;
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.heap, allocationInfo.startIndex,
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				allocationInfo.heap, allocationInfo.startIndex,
 				allocationInfo.nrOfDescriptors);
 		}
 		else
@@ -191,8 +204,8 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeDescriptorAlloca
 			auto& allocationInfo = info.descriptorHeapInfo.owned;
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.nrOfDescriptors);
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				allocationInfo.nrOfDescriptors);
 		}
 
 		switch (info.viewType)

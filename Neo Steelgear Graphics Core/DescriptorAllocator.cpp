@@ -6,7 +6,7 @@ ID3D12DescriptorHeap* DescriptorAllocator::AllocateHeap(size_t nrOfDescriptors)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC desc;
 
-	desc.Type = heapData.descriptorInfo.type;
+	desc.Type = heapData.descriptorType;
 	desc.NumDescriptors = static_cast<UINT>(nrOfDescriptors);
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // Not shader visible
 	desc.NodeMask = 0;
@@ -52,8 +52,7 @@ bool DescriptorAllocator::AllocationHelper(size_t& index,
 		return false;
 
 	handle = heapData.heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += heapData.descriptorInfo.descriptorSize * 
-		(heapData.startIndex + index);
+	handle.ptr += heapData.descriptorSize * (heapData.startIndex + index);
 
 	return true;
 }
@@ -87,25 +86,27 @@ DescriptorAllocator::operator=(DescriptorAllocator&& other) noexcept
 	return *this;
 }
 
-void DescriptorAllocator::Initialize(const DescriptorInfo& descriptorInfo,
+void DescriptorAllocator::Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType,
 	ID3D12Device* deviceToUse, ID3D12DescriptorHeap* heap, size_t startIndex,
 	size_t nrOfDescriptors)
 {
 	device = deviceToUse;
 
 	heapData.heapOwned = false;
-	heapData.descriptorInfo = descriptorInfo;
+	heapData.descriptorType = descriptorType;
+	heapData.descriptorSize = device->GetDescriptorHandleIncrementSize(descriptorType);
 	heapData.startIndex = startIndex;
 	heapData.endIndex = startIndex + nrOfDescriptors;
 	heapData.heap = heap;
 }
 
-void DescriptorAllocator::Initialize(const DescriptorInfo& descriptorInfo,
+void DescriptorAllocator::Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType,
 	ID3D12Device* deviceToUse, size_t nrOfDescriptors)
 {
 	device = deviceToUse;
 	heapData.heapOwned = true;
-	heapData.descriptorInfo = descriptorInfo;
+	heapData.descriptorType = descriptorType;
+	heapData.descriptorSize = device->GetDescriptorHandleIncrementSize(descriptorType);
 	heapData.startIndex = 0;
 	heapData.endIndex = nrOfDescriptors;
 	heapData.heap = AllocateHeap(nrOfDescriptors);
@@ -183,8 +184,7 @@ const D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetDescriptorHandle(
 	D3D12_CPU_DESCRIPTOR_HANDLE toReturn;
 	toReturn = heapData.heap->GetCPUDescriptorHandleForHeapStart();
 
-	toReturn.ptr += heapData.descriptorInfo.descriptorSize * 
-		(heapData.startIndex + index);
+	toReturn.ptr += heapData.descriptorSize * (heapData.startIndex + index);
 
 	return toReturn;
 }

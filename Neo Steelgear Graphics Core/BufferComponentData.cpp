@@ -35,6 +35,48 @@ void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
 	}
 }
 
+void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
+	size_t startOffset, unsigned int dataSize, void* initialData)
+{
+	if (type == UpdateType::NONE)
+		return;
+
+	if (type != UpdateType::INITIALISE_ONLY)
+	{
+		if(headers.size() <= resourceIndex)
+			headers.resize(resourceIndex + 1);
+
+		headers[resourceIndex].startOffset = startOffset;
+		headers[resourceIndex].dataSize = dataSize;
+		headers[resourceIndex].resourceIndex = resourceIndex;
+		headers[resourceIndex].specifics.framesLeft = 0;
+	}
+	else
+	{
+		DataHeader toAdd;
+		toAdd.specifics.framesLeft = 0;
+		toAdd.startOffset = headers.size() == 0 ? 0 :
+			headers.back().startOffset + headers.back().dataSize;
+		toAdd.dataSize = dataSize;
+		toAdd.resourceIndex = resourceIndex;
+		headers.push_back(toAdd);
+
+		if (type == UpdateType::INITIALISE_ONLY)
+		{
+			if (usedDataSize + dataSize > data.capacity())
+			{
+				data.reserve(usedDataSize + dataSize);
+				data.resize(usedDataSize + dataSize); // Resize so new data fits
+			}
+
+			usedDataSize += dataSize;
+		}
+	}
+
+	if (initialData != nullptr)
+		UpdateComponentData(resourceIndex, initialData);
+}
+
 void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 {
 	if (type == UpdateType::NONE)
@@ -42,11 +84,10 @@ void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 
 	if (type != UpdateType::INITIALISE_ONLY)
 	{
-		std::int64_t difference = headers[resourceIndex].dataSize;
-		difference = -difference;
-		headers[resourceIndex].specifics.framesLeft = 0;
+		headers[resourceIndex].startOffset = static_cast<size_t>(-1);
 		headers[resourceIndex].dataSize = 0;
-		UpdateExistingHeaders(resourceIndex, difference);
+		headers[resourceIndex].resourceIndex = ResourceIndex(-1);
+		headers[resourceIndex].specifics.framesLeft = 0;
 	}
 	else
 	{
@@ -108,11 +149,15 @@ void BufferComponentData::PrepareUpdates(
 	if (updateNeeded == false || type == UpdateType::MAP_UPDATE)
 		return;
 
-	D3D12_RESOURCE_BARRIER barrier =
-		componentToUpdate.CreateTransitionBarrier(D3D12_RESOURCE_STATE_COPY_DEST);
+	if (componentToUpdate.GetCurrentState() != D3D12_RESOURCE_STATE_COMMON &&
+		componentToUpdate.GetCurrentState() != D3D12_RESOURCE_STATE_COPY_DEST)
+	{
+		D3D12_RESOURCE_BARRIER barrier = 
+			componentToUpdate.CreateTransitionBarrier(
+				D3D12_RESOURCE_STATE_COPY_DEST);
 
-	if (barrier.Transition.StateBefore != barrier.Transition.StateAfter)
 		barriers.push_back(barrier);
+	}
 }
 
 void BufferComponentData::UpdateComponentResources(
@@ -124,37 +169,86 @@ void BufferComponentData::UpdateComponentResources(
 
 	updateNeeded = false;
 
-	for (size_t i = 0; i < headers.size(); ++i)
+	if (type == UpdateType::INITIALISE_ONLY)
 	{
-		if (headers[i].specifics.framesLeft == 0)
-			continue;
-		else if (headers[i].specifics.framesLeft > 1)
-			updateNeeded = true; // At least one update left for next frame
-
-		auto handle = componentToUpdate.GetBufferHandle(headers[i].resourceIndex);
-		unsigned char* source = data.data();
-		source += headers[i].startOffset;
-
-		if (type != UpdateType::MAP_UPDATE)
+		for (size_t i = 0; i < headers.size(); ++i)
 		{
-			uploader.UploadBufferResourceData(handle.resource, commandList, source,
-				handle.startOffset, headers[i].dataSize, componentAlignment);
-		}
-		else
-		{
-			componentToUpdate.UpdateMappedBuffer(headers[i].resourceIndex,
-				source);
-		}
+			if (headers[i].specifics.framesLeft == 0)
+				continue;
+			else if (headers[i].specifics.framesLeft > 1)
+				updateNeeded = true; // At least one update left for next frame
 
-		--headers[i].specifics.framesLeft;
+			auto handle = componentToUpdate.GetBufferHandle(
+				headers[i].resourceIndex);
+			unsigned char* source = data.data();
+			source += headers[i].startOffset;
 
-		// Ändra detta till att räkna upp hur många som borde tas bort, och ta sedan bort de efter loopen, fixar problemet med varannan
+			if (type != UpdateType::MAP_UPDATE)
+			{
+				uploader.UploadBufferResourceData(handle.resource, commandList,
+					source, handle.startOffset, headers[i].dataSize,
+					componentAlignment);
+			}
+			else
+			{
+				componentToUpdate.UpdateMappedBuffer(headers[i].resourceIndex,
+					source);
+			}
 
-		// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
-		if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
-		{
-			RemoveComponent(headers[i].resourceIndex);
-			--i;
+			--headers[i].specifics.framesLeft;
+
+			// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
+			if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
+			{
+				RemoveComponent(headers[i].resourceIndex);
+				--i;
+			}
 		}
 	}
+	else if (type == UpdateType::COPY_UPDATE)
+	{
+		size_t earliestOffset = static_cast<size_t>(-1);
+		size_t latestEnd = 0;
+		ID3D12Resource* resource = nullptr;
+
+		for (auto& header : headers)
+		{
+			if (header.specifics.framesLeft == 0)
+				continue;
+			else if (header.specifics.framesLeft > 1)
+				updateNeeded = true; // At least one update left for next frame
+
+			earliestOffset = min(header.startOffset, earliestOffset);
+			latestEnd = max(header.startOffset + header.dataSize, latestEnd);
+			--header.specifics.framesLeft;
+			resource =
+				componentToUpdate.GetBufferHandle(header.resourceIndex).resource;
+		}
+
+		if (resource != nullptr)
+		{
+			bool result = uploader.UploadBufferResourceData(resource, commandList,
+				data.data() + earliestOffset, earliestOffset,
+				latestEnd - earliestOffset, componentAlignment);
+
+			if(result == false)
+				uploader.UploadBufferResourceData(resource, commandList,
+					data.data() + earliestOffset, earliestOffset,
+					latestEnd - earliestOffset, componentAlignment);
+		}
+	}
+	else
+	{
+		for (auto& header : headers)
+		{
+			if (header.specifics.framesLeft == 0)
+				continue;
+			else if (header.specifics.framesLeft > 1)
+				updateNeeded = true; // At least one update left for next frame
+
+			componentToUpdate.UpdateMappedBuffer(header.resourceIndex,
+				data.data() + header.startOffset);
+		}
+	}
+	
 }

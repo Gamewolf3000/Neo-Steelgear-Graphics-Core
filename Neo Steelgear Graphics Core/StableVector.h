@@ -236,6 +236,8 @@ inline void StableVector<T>::Expand(size_t newSize)
 		elements[i] = toSet;
 		toSet.nextFree = i;
 	}
+
+	firstFree = elements.size() - 1;
 }
 
 template<typename T>
