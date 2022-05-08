@@ -143,6 +143,11 @@ D3D12_RESOURCE_BARRIER BufferAllocator::CreateTransitionBarrier(
 	return toReturn;
 }
 
+unsigned char* BufferAllocator::GetMappedPtr()
+{
+	return mappedStart;
+}
+
 BufferHandle BufferAllocator::GetHandle(size_t index)
 {
 	BufferHandle toReturn;

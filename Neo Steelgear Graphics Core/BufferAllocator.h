@@ -61,6 +61,7 @@ public:
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
+	unsigned char* GetMappedPtr();
 	BufferHandle GetHandle(size_t index);
 	size_t GetElementSize();
 	size_t GetElementAlignment();

@@ -315,6 +315,11 @@ BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& index)
 	return bufferAllocator.GetHandle(index);
 }
 
+unsigned char* BufferComponent::GetMappedPtr()
+{
+	return bufferAllocator.GetMappedPtr();
+}
+
 D3D12_RESOURCE_STATES BufferComponent::GetCurrentState()
 {
 	return bufferAllocator.GetCurrentState();

@@ -77,6 +77,9 @@ void BufferComponentData::HandleCopyUpdate(
 
 void BufferComponentData::HandleMapUpdate(BufferComponent& componentToUpdate)
 {
+	size_t earliestOffset = static_cast<size_t>(-1);
+	size_t latestEnd = 0;
+
 	for (auto& header : headers)
 	{
 		if (header.specifics.framesLeft == 0)
@@ -84,8 +87,16 @@ void BufferComponentData::HandleMapUpdate(BufferComponent& componentToUpdate)
 		else if (header.specifics.framesLeft > 1)
 			updateNeeded = true; // At least one update left for next frame
 
-		componentToUpdate.UpdateMappedBuffer(header.resourceIndex,
-			data.data() + header.startOffset);
+		earliestOffset = min(header.startOffset, earliestOffset);
+		latestEnd = max(header.startOffset + header.dataSize, latestEnd);
+		--header.specifics.framesLeft;
+	}
+
+	if (latestEnd != 0)
+	{
+		unsigned char* mapped = componentToUpdate.GetMappedPtr();
+		mapped += earliestOffset;
+		memcpy(mapped, data.data() + earliestOffset, latestEnd - earliestOffset);
 	}
 }
 

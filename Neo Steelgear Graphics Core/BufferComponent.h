@@ -143,6 +143,7 @@ public:
 	bool HasDescriptorsOfType(ViewType type) const override;
 
 	BufferHandle GetBufferHandle(const ResourceIndex& index);
+	unsigned char* GetMappedPtr();
 
 	D3D12_RESOURCE_STATES GetCurrentState();
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
