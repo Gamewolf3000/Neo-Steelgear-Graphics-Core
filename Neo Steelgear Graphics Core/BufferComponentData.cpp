@@ -1,5 +1,94 @@
 #include "BufferComponentData.h"
 
+void BufferComponentData::HandleInitializeOnlyUpdate(
+	ID3D12GraphicsCommandList* commandList, ResourceUploader& uploader,
+	BufferComponent& componentToUpdate, size_t componentAlignment)
+{
+	for (size_t i = 0; i < headers.size(); ++i)
+	{
+		if (headers[i].specifics.framesLeft == 0)
+			continue;
+		else if (headers[i].specifics.framesLeft > 1)
+			updateNeeded = true; // At least one update left for next frame
+
+		auto handle = componentToUpdate.GetBufferHandle(
+			headers[i].resourceIndex);
+		unsigned char* source = data.data();
+		source += headers[i].startOffset;
+
+		if (type != UpdateType::MAP_UPDATE)
+		{
+			bool result = uploader.UploadBufferResourceData(handle.resource,
+				commandList, source, handle.startOffset, headers[i].dataSize,
+				componentAlignment);
+
+			if (!result)
+				headers[i].specifics.framesLeft += nrOfFrames; // Let it loop, not the best solution
+		}
+		else
+		{
+			componentToUpdate.UpdateMappedBuffer(headers[i].resourceIndex,
+				source);
+		}
+
+		--headers[i].specifics.framesLeft;
+
+		// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
+		if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
+		{
+			RemoveComponent(headers[i].resourceIndex);
+			--i;
+		}
+	}
+}
+
+void BufferComponentData::HandleCopyUpdate(
+	ID3D12GraphicsCommandList* commandList, ResourceUploader& uploader,
+	BufferComponent& componentToUpdate, size_t componentAlignment)
+{
+	size_t earliestOffset = static_cast<size_t>(-1);
+	size_t latestEnd = 0;
+	ID3D12Resource* resource = nullptr;
+
+	for (auto& header : headers)
+	{
+		if (header.specifics.framesLeft == 0)
+			continue;
+		else if (header.specifics.framesLeft > 1)
+			updateNeeded = true; // At least one update left for next frame
+
+		earliestOffset = min(header.startOffset, earliestOffset);
+		latestEnd = max(header.startOffset + header.dataSize, latestEnd);
+		--header.specifics.framesLeft;
+		resource =
+			componentToUpdate.GetBufferHandle(header.resourceIndex).resource;
+	}
+
+	if (resource != nullptr)
+	{
+		bool result = uploader.UploadBufferResourceData(resource, commandList,
+			data.data() + earliestOffset, earliestOffset,
+			latestEnd - earliestOffset, componentAlignment);
+
+		if (result == false)
+			throw std::runtime_error("Could not update data for buffer component");
+	}
+}
+
+void BufferComponentData::HandleMapUpdate(BufferComponent& componentToUpdate)
+{
+	for (auto& header : headers)
+	{
+		if (header.specifics.framesLeft == 0)
+			continue;
+		else if (header.specifics.framesLeft > 1)
+			updateNeeded = true; // At least one update left for next frame
+
+		componentToUpdate.UpdateMappedBuffer(header.resourceIndex,
+			data.data() + header.startOffset);
+	}
+}
+
 void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
 	unsigned int dataSize)
 {
@@ -169,86 +258,18 @@ void BufferComponentData::UpdateComponentResources(
 
 	updateNeeded = false;
 
-	if (type == UpdateType::INITIALISE_ONLY)
+	switch (type)
 	{
-		for (size_t i = 0; i < headers.size(); ++i)
-		{
-			if (headers[i].specifics.framesLeft == 0)
-				continue;
-			else if (headers[i].specifics.framesLeft > 1)
-				updateNeeded = true; // At least one update left for next frame
-
-			auto handle = componentToUpdate.GetBufferHandle(
-				headers[i].resourceIndex);
-			unsigned char* source = data.data();
-			source += headers[i].startOffset;
-
-			if (type != UpdateType::MAP_UPDATE)
-			{
-				uploader.UploadBufferResourceData(handle.resource, commandList,
-					source, handle.startOffset, headers[i].dataSize,
-					componentAlignment);
-			}
-			else
-			{
-				componentToUpdate.UpdateMappedBuffer(headers[i].resourceIndex,
-					source);
-			}
-
-			--headers[i].specifics.framesLeft;
-
-			// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
-			if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
-			{
-				RemoveComponent(headers[i].resourceIndex);
-				--i;
-			}
-		}
+	case UpdateType::INITIALISE_ONLY:
+		HandleInitializeOnlyUpdate(commandList, uploader,
+			componentToUpdate, componentAlignment);
+		break;
+	case UpdateType::MAP_UPDATE:
+		HandleMapUpdate(componentToUpdate);
+		break;
+	case UpdateType::COPY_UPDATE:
+		HandleCopyUpdate(commandList, uploader,
+			componentToUpdate, componentAlignment);
+		break;
 	}
-	else if (type == UpdateType::COPY_UPDATE)
-	{
-		size_t earliestOffset = static_cast<size_t>(-1);
-		size_t latestEnd = 0;
-		ID3D12Resource* resource = nullptr;
-
-		for (auto& header : headers)
-		{
-			if (header.specifics.framesLeft == 0)
-				continue;
-			else if (header.specifics.framesLeft > 1)
-				updateNeeded = true; // At least one update left for next frame
-
-			earliestOffset = min(header.startOffset, earliestOffset);
-			latestEnd = max(header.startOffset + header.dataSize, latestEnd);
-			--header.specifics.framesLeft;
-			resource =
-				componentToUpdate.GetBufferHandle(header.resourceIndex).resource;
-		}
-
-		if (resource != nullptr)
-		{
-			bool result = uploader.UploadBufferResourceData(resource, commandList,
-				data.data() + earliestOffset, earliestOffset,
-				latestEnd - earliestOffset, componentAlignment);
-
-			if(result == false)
-				uploader.UploadBufferResourceData(resource, commandList,
-					data.data() + earliestOffset, earliestOffset,
-					latestEnd - earliestOffset, componentAlignment);
-		}
-	}
-	else
-	{
-		for (auto& header : headers)
-		{
-			if (header.specifics.framesLeft == 0)
-				continue;
-			else if (header.specifics.framesLeft > 1)
-				updateNeeded = true; // At least one update left for next frame
-
-			componentToUpdate.UpdateMappedBuffer(header.resourceIndex,
-				data.data() + header.startOffset);
-		}
-	}
-	
 }

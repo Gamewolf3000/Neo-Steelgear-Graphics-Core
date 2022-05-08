@@ -12,6 +12,13 @@ struct BufferSpecific
 class BufferComponentData : public ComponentData<BufferSpecific>
 {
 private:
+	void HandleInitializeOnlyUpdate(ID3D12GraphicsCommandList* commandList,
+		ResourceUploader& uploader, BufferComponent& componentToUpdate,
+		size_t componentAlignment);
+	void HandleCopyUpdate(ID3D12GraphicsCommandList* commandList,
+		ResourceUploader& uploader, BufferComponent& componentToUpdate,
+		size_t componentAlignment);
+	void HandleMapUpdate(BufferComponent& componentToUpdate);
 
 public:
 	BufferComponentData() = default;
