@@ -76,7 +76,7 @@ void EnableGPUBasedValidation()
 ID3D12Device* CreateDevice()
 {
 	EnableDebugLayer();
-	EnableGPUBasedValidation();
+	//EnableGPUBasedValidation();
 
 	IDXGIAdapter* adapter = GetAdapter();
 	if (adapter == nullptr)

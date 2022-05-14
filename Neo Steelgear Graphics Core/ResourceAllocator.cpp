@@ -34,7 +34,7 @@ ID3D12Heap* ResourceAllocator::AllocateHeap(size_t size, bool uploadHeap,
 	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 	desc.Flags = flags;
 
-	ID3D12Heap* toReturn;
+	ID3D12Heap* toReturn = nullptr;
 	HRESULT hr = device->CreateHeap(&desc, IID_PPV_ARGS(&toReturn));
 
 	if (FAILED(hr))
@@ -62,6 +62,12 @@ ID3D12Resource* ResourceAllocator::AllocateResource(const D3D12_RESOURCE_DESC& d
 	}
 
 	return toReturn;
+}
+
+ResourceAllocator::~ResourceAllocator()
+{
+	if (heapData.heapOwned && heapData.heap != nullptr)
+		heapData.heap->Release();
 }
 
 ResourceAllocator::ResourceAllocator(ResourceAllocator&& other) noexcept :

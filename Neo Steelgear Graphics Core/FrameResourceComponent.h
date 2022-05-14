@@ -51,7 +51,7 @@ protected:
 
 public:
 	FrameResourceComponent() = default;
-
+	virtual ~FrameResourceComponent() = default;
 	FrameResourceComponent(const FrameResourceComponent& other) = delete;
 	FrameResourceComponent& operator=(const FrameResourceComponent& other) = delete;
 	FrameResourceComponent(FrameResourceComponent&& other) noexcept;

@@ -43,7 +43,7 @@ private:
 
 public:
 	BufferAllocator() = default;
-	~BufferAllocator();
+	virtual ~BufferAllocator() = default;
 	BufferAllocator(const BufferAllocator& other) = delete;
 	BufferAllocator& operator=(const BufferAllocator& other) = delete;
 	BufferAllocator(BufferAllocator&& other) noexcept;

@@ -23,9 +23,6 @@ D3D12_RESOURCE_DESC TextureAllocator::CreateTextureDesc(
 TextureAllocator::~TextureAllocator()
 {
 	textures.ClearHeap();
-
-	if (heapData.heapOwned && heapData.heap != nullptr)
-		heapData.heap->Release();
 }
 
 TextureAllocator::TextureAllocator(TextureAllocator&& other) noexcept : 

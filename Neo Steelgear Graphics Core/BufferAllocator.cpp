@@ -22,12 +22,6 @@ ID3D12Resource* BufferAllocator::AllocateResource(size_t size, ID3D12Device* dev
 		heapData.startOffset, device);
 }
 
-BufferAllocator::~BufferAllocator()
-{
-	if (heapData.heapOwned && heapData.heap != nullptr)
-		heapData.heap->Release();
-}
-
 BufferAllocator::BufferAllocator(BufferAllocator&& other) noexcept :
 	ResourceAllocator(std::move(other)), resource(std::move(other.resource)),
 	mappedStart(other.mappedStart), bufferInfo(other.bufferInfo),

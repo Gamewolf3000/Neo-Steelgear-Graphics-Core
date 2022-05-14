@@ -30,6 +30,7 @@ private:
 
 public:
 	FrameBufferComponent() = default;
+	virtual ~FrameBufferComponent() = default;
 	FrameBufferComponent(const FrameBufferComponent& other) = delete;
 	FrameBufferComponent& operator=(const FrameBufferComponent& other) = delete;
 	FrameBufferComponent(FrameBufferComponent&& other) noexcept;
@@ -54,6 +55,7 @@ public:
 		D3D12_RESOURCE_STATES newState);
 
 	D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(ResourceIndex index);
+	BufferHandle GetBufferHandle(ResourceIndex index);
 };
 
 template<short Frames>
@@ -164,7 +166,10 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 	lifetimeOperation.framesLeft = Frames - 1;
 	lifetimeOperation.creation = { nrOfElements, replacementViews };
 	this->storedLifetimeOperations.push_back(lifetimeOperation);
-	this->componentData.AddComponent(toReturn, 
+
+	auto handle =
+		this->resourceComponents[this->activeFrame].GetBufferHandle(toReturn);
+	this->componentData.AddComponent(toReturn, handle.startOffset,
 		static_cast<unsigned int>(nrOfElements * bufferSize));
 
 	return toReturn;
@@ -233,3 +238,8 @@ FrameBufferComponent<Frames>::GetVirtualAdress(ResourceIndex index)
 	return toReturn;
 }
 
+template<short Frames>
+inline BufferHandle FrameBufferComponent<Frames>::GetBufferHandle(ResourceIndex index)
+{
+	return this->resourceComponents[this->activeFrame].GetBufferHandle(index);
+}

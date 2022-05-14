@@ -34,7 +34,7 @@ protected:
 
 public:
 	ResourceAllocator() = default;
-	~ResourceAllocator() = default;
+	virtual ~ResourceAllocator();
 	ResourceAllocator(const ResourceAllocator& other) = default;
 	ResourceAllocator& operator=(const ResourceAllocator& other) = default;
 	ResourceAllocator(ResourceAllocator&& other) noexcept;

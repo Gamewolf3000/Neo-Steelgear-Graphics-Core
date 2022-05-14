@@ -347,7 +347,6 @@ TEST(BufferComponentDataTest, PerformsMapUpdatesCorrectly)
 
 		for (unsigned int currentFrame = 0; currentFrame < frames; ++currentFrame)
 		{
-
 			componentData.UpdateComponentResources(commandStructure.list, uploader,
 				components[currentFrame], bufferInfo.alignment);
 
