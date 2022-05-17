@@ -89,7 +89,4 @@ public:
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(ResourceIndex resourceIndex,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
-
-	void UpdateMappedTexture(ResourceIndex index, void* data,
-		unsigned int subresource);
 };

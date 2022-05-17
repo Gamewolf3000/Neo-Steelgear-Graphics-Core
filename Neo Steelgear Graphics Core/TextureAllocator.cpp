@@ -27,12 +27,10 @@ TextureAllocator::~TextureAllocator()
 
 TextureAllocator::TextureAllocator(TextureAllocator&& other) noexcept : 
 	ResourceAllocator(std::move(other)), device(other.device), 
-	textureInfo(other.textureInfo), mappedTextures(other.mappedTextures),
-	textures(std::move(other.textures))
+	textureInfo(other.textureInfo), textures(std::move(other.textures))
 {
 	other.device = nullptr;
 	other.textureInfo = TextureInfo();
-	other.mappedTextures = false;
 }
 
 TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
@@ -44,8 +42,6 @@ TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
 		other.device = nullptr;
 		textureInfo = other.textureInfo;
 		other.textureInfo = TextureInfo();
-		mappedTextures = other.mappedTextures;
-		other.mappedTextures = false;
 		textures = std::move(other.textures);
 	}
 
@@ -53,13 +49,11 @@ TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
 }
 
 void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse, 
-	ID3D12Device* deviceToUse, bool mappedUpdateable, 
-	const AllowedViews& allowedViews, ID3D12Heap* heap, size_t startOffset,
-	size_t endOffset)
+	ID3D12Device* deviceToUse, const AllowedViews& allowedViews,
+	ID3D12Heap* heap, size_t startOffset, size_t endOffset)
 {
 	ResourceAllocator::Initialize(allowedViews);
 	device = deviceToUse;
-	mappedTextures = mappedUpdateable;
 	textureInfo = textureInfoToUse;
 	textures.Initialize(endOffset - startOffset);
 	heapData.heapOwned = false;
@@ -69,19 +63,18 @@ void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse,
 }
 
 void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse,
-	ID3D12Device* deviceToUse, bool mappedUpdateable,
-	const AllowedViews& allowedViews, size_t heapSize)
+	ID3D12Device* deviceToUse, const AllowedViews& allowedViews,
+	size_t heapSize)
 {
 	ResourceAllocator::Initialize(allowedViews);
 	device = deviceToUse;
-	mappedTextures = mappedUpdateable;
 	textureInfo = textureInfoToUse;
 	textures.Initialize(heapSize);
 	heapData.heapOwned = true;
 	D3D12_HEAP_FLAGS heapFlag = allowedViews.dsv || allowedViews.rtv ?
 		D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES :
 		D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
-	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, heapFlag, device);
+	heapData.heap = AllocateHeap(heapSize, false, heapFlag, device);
 	heapData.startOffset = 0;
 	heapData.endOffset = heapSize;
 }
@@ -139,34 +132,6 @@ size_t TextureAllocator::GetTexelSize()
 DXGI_FORMAT TextureAllocator::GetTextureFormat()
 {
 	return textureInfo.format;
-}
-
-void TextureAllocator::UpdateMappedTexture(size_t index, void* data,
-	unsigned int subresource)
-{
-	ID3D12Resource* toUploadTo = textures[index].resource;
-	D3D12_RESOURCE_DESC resourceDesc = toUploadTo->GetDesc();
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-	UINT numRows = 0;
-	UINT64 rowSizeInBytes = 0;
-	UINT64 totalBytes = 0;
-	device->GetCopyableFootprints(&resourceDesc, subresource, 1, 0, &footprint,
-		&numRows, &rowSizeInBytes, &totalBytes);
-
-	unsigned char* mappedPtr = nullptr;
-	D3D12_RANGE nothing = { 0, 0 };
-	toUploadTo->Map(subresource, &nothing, reinterpret_cast<void**>(&mappedPtr));
-
-	std::uint64_t sourceOffset = 0;
-	std::uint64_t destinationOffset = 0;
-	for (UINT row = 0; row < numRows; ++row)
-	{
-		std::memcpy(mappedPtr + destinationOffset,
-			static_cast<unsigned char*>(data) + sourceOffset, 
-			static_cast<size_t>(rowSizeInBytes));
-		sourceOffset += rowSizeInBytes;
-		destinationOffset += footprint.Footprint.RowPitch;
-	}
 }
 
 D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(size_t index,

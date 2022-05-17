@@ -53,6 +53,7 @@
     <ClCompile Include="TestHeapHelper.cpp" />
     <ClCompile Include="TestResourceUploader.cpp" />
     <ClCompile Include="TestStableVector.cpp" />
+    <ClCompile Include="TestTextureAllocator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Neo Steelgear Graphics Core\Neo Steelgear Graphics Core.vcxproj">

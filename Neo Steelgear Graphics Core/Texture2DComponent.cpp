@@ -222,9 +222,3 @@ D3D12_RESOURCE_BARRIER Texture2DComponent::CreateTransitionBarrier(
 {
 	return textureAllocator.CreateTransitionBarrier(resourceIndex, newState, flag);
 }
-
-void Texture2DComponent::UpdateMappedTexture(ResourceIndex index, void* data,
-	unsigned int subresource)
-{
-	textureAllocator.UpdateMappedTexture(index, data, subresource);
-}

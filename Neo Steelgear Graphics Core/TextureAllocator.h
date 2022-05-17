@@ -102,7 +102,6 @@ private:
 
 	ID3D12Device* device = nullptr;
 	TextureInfo textureInfo;
-	bool mappedTextures = false;
 	HeapHelper<TextureEntry> textures;
 
 	D3D12_RESOURCE_DESC CreateTextureDesc(const TextureAllocationInfo& info);
@@ -116,10 +115,10 @@ public:
 	TextureAllocator& operator=(TextureAllocator&& other) noexcept;
 
 	void Initialize(const TextureInfo& textureInfoToUse, ID3D12Device* deviceToUse,
-		bool mappedUpdateable, const AllowedViews& allowedViews, ID3D12Heap* heap,
+		const AllowedViews& allowedViews, ID3D12Heap* heap,
 		size_t startOffset, size_t endOffset);
 	void Initialize(const TextureInfo& textureInfoToUse, ID3D12Device* deviceToUse,
-		bool mappedUpdateable, const AllowedViews& allowedViews, size_t heapSize);
+		const AllowedViews& allowedViews, size_t heapSize);
 
 	size_t AllocateTexture(const TextureAllocationInfo& info);
 
@@ -133,6 +132,4 @@ public:
 	D3D12_RESOURCE_STATES GetCurrentState(size_t index);
 	size_t GetTexelSize();
 	DXGI_FORMAT GetTextureFormat();
-
-	void UpdateMappedTexture(size_t index, void* data, unsigned int subresource);
 };

@@ -281,8 +281,7 @@ void Texture2DComponentData::UpdateComponentResources(
 			}
 			else
 			{
-				componentToUpdate.UpdateMappedTexture(headers[i].resourceIndex,
-					source, j);
+				// FIX THIS LATER, IT IS LITERALLY NOT POSSIBLE TO MAP UPDATE A TEXTURE!!!
 			}
 
 			--subresource.framesLeft;

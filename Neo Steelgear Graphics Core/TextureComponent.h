@@ -12,13 +12,11 @@
 struct TextureComponentInfo
 {
 	TextureInfo textureInfo;
-	bool mappedResource;
 	ResourceHeapInfo heapInfo;
 
 	TextureComponentInfo(DXGI_FORMAT format, std::uint8_t texelSize,
-		bool mapResources, const ResourceHeapInfo& heapInfo) :
-		textureInfo({format, texelSize}), mappedResource(mapResources),
-		heapInfo(heapInfo)
+		const ResourceHeapInfo& heapInfo) :
+		textureInfo({format, texelSize}), heapInfo(heapInfo)
 	{
 		// Empty
 	}
@@ -155,15 +153,15 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeTextureAllocator
 		auto& allocationInfo = textureInfo.heapInfo.info.external;
 
 		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			textureInfo.mappedResource, views, allocationInfo.heap,
-			allocationInfo.startOffset, allocationInfo.endOffset);
+			views, allocationInfo.heap, allocationInfo.startOffset,
+			allocationInfo.endOffset);
 	}
 	else
 	{
 		auto& allocationInfo = textureInfo.heapInfo.info.owned;
 
 		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			textureInfo.mappedResource, views, allocationInfo.heapSize);
+			views, allocationInfo.heapSize);
 	}
 }
 
