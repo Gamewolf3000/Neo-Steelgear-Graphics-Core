@@ -99,7 +99,7 @@ protected:
 		const DescDSV& desc, const TextureHandle& handle) = 0;
 
 	virtual bool CreateViews(const TextureReplacementViews& replacements, 
-		const TextureHandle& handle) = 0;
+		const TextureHandle& handle, ResourceIndex& resourceIndex) = 0;
 
 	void InitializeTextureAllocator(ID3D12Device* device,
 		const TextureComponentInfo& textureInfo);
@@ -191,19 +191,23 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeDescriptorAlloca
 		if (info.heapType == HeapType::EXTERNAL)
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.external;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
 			descriptorAllocators.back().Initialize(descriptorType, device,
 				allocationInfo.heap, allocationInfo.startIndex,
-				allocationInfo.nrOfDescriptors);
+				nrOfDescriptors);
 		}
 		else
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.owned;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
 			descriptorAllocators.back().Initialize(descriptorType, device,
-				allocationInfo.nrOfDescriptors);
+				nrOfDescriptors);
 		}
 
 		switch (info.viewType)

@@ -73,34 +73,6 @@ TEST(TextureAllocatorTest, RuntimeInitialisable)
 	InitializationHelper(lambda);
 }
 
-D3D12_RESOURCE_DESC CreateTexture2DDesc(UINT64 width, UINT height, UINT16 mips,
-	UINT16 arraySize, DXGI_FORMAT format, const AllowedViews& allowedViews)
-{
-	D3D12_RESOURCE_DESC toReturn;
-	toReturn.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	toReturn.Alignment = 0;
-	toReturn.Width = width;
-	toReturn.Height = height;
-	toReturn.DepthOrArraySize = arraySize;
-	toReturn.MipLevels = mips;
-	toReturn.Format = format;
-	toReturn.SampleDesc.Count = 1;
-	toReturn.SampleDesc.Quality = 0;
-	toReturn.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	toReturn.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	if(allowedViews.rtv)
-		toReturn.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (allowedViews.dsv)
-		toReturn.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	if (allowedViews.uav)
-		toReturn.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	if (allowedViews.dsv && !allowedViews.srv)
-		toReturn.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-
-	return toReturn;
-}
-
 TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 {
 	auto lambda = [](ID3D12Device* device, size_t heapSize,

@@ -75,6 +75,18 @@ std::uint8_t Texture2DComponentData::CalculateSubresourceCount(
 	return static_cast<std::uint8_t>(planeCount * arrayCount * desc.MipLevels);
 }
 
+void Texture2DComponentData::Initialize(ID3D12Device* deviceToUse, 
+	FrameType totalNrOfFrames, UpdateType componentUpdateType,
+	unsigned int totalSize)
+{
+	// Textures cannot be placed in upload heaps
+	if (componentUpdateType == UpdateType::MAP_UPDATE)
+		throw std::runtime_error("Texture2D component data for map update is not possible");
+
+	ComponentData<Texture2DSpecific>::Initialize(deviceToUse, totalNrOfFrames,
+		componentUpdateType, totalSize);
+}
+
 void Texture2DComponentData::AddComponent(ResourceIndex resourceIndex,
 	unsigned int dataSize, ID3D12Resource* resource)
 {
@@ -213,7 +225,6 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 
 void Texture2DComponentData::PrepareUpdates(std::vector<D3D12_RESOURCE_BARRIER>& barriers, Texture2DComponent& componentToUpdate)
 {
-	// A mapped resource is in an upload heap which needs to be generic read state
 	if (this->updateNeeded == false || type == UpdateType::MAP_UPDATE)
 		return;
 
@@ -267,22 +278,14 @@ void Texture2DComponentData::UpdateComponentResources(
 			unsigned char* source = data.data();
 			source += headers[i].startOffset + subresource.startOffset;
 
-			if (type != UpdateType::MAP_UPDATE)
-			{
-				TextureUploadInfo uploadInfo;
-				uploadInfo.texelSizeInBytes = texelSize;
-				uploadInfo.format = textureFormat;
-				uploadInfo.width = subresource.width;
-				uploadInfo.height = subresource.height;
-				uploadInfo.depth = 1;
-
-				uploader.UploadTextureResourceData(handle.resource, commandList,
-					source, uploadInfo, 0);
-			}
-			else
-			{
-				// FIX THIS LATER, IT IS LITERALLY NOT POSSIBLE TO MAP UPDATE A TEXTURE!!!
-			}
+			TextureUploadInfo uploadInfo;
+			uploadInfo.texelSizeInBytes = texelSize;
+			uploadInfo.format = textureFormat;
+			uploadInfo.width = subresource.width;
+			uploadInfo.height = subresource.height;
+			uploadInfo.depth = 1;
+			uploader.UploadTextureResourceData(handle.resource, commandList,
+				source, uploadInfo, 0);
 
 			--subresource.framesLeft;
 		}

@@ -5,6 +5,8 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+#include "../Neo Steelgear Graphics Core/ResourceAllocator.h"
+
 struct SimpleCommandStructure
 {
 	ID3D12CommandQueue* queue = nullptr;
@@ -32,6 +34,9 @@ ID3D12Device* CreateDevice();
 
 ID3D12Resource* CreateBuffer(ID3D12Device* device, UINT64 size, bool readback,
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+
+D3D12_RESOURCE_DESC CreateTexture2DDesc(UINT64 width, UINT height, UINT16 mips,
+	UINT16 arraySize, DXGI_FORMAT format, const AllowedViews& allowedViews);
 
 ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback, 
 	UINT64 width, UINT height, UINT16 arraySize = 1, UINT16 mipLevels = 1,

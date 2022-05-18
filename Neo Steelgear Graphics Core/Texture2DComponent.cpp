@@ -118,14 +118,14 @@ D3D12_DEPTH_STENCIL_VIEW_DESC Texture2DComponent::CreateDSV(
 
 bool Texture2DComponent::CreateViews(
 	const Texture2DComponentTemplate::TextureReplacementViews& replacements,
-	const TextureHandle& handle)
+	const TextureHandle& handle, ResourceIndex& resourceIndex)
 {
 	if (srv.index != std::uint8_t(-1))
 	{
 		auto desc = CreateSRV(replacements.sr != std::nullopt ? *replacements.sr :
 			srv.desc, handle);
 		if (descriptorAllocators[srv.index].AllocateSRV(
-			handle.resource, &desc) == size_t(-1))
+			handle.resource, &desc, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -137,7 +137,7 @@ bool Texture2DComponent::CreateViews(
 			uav.desc, handle);
 
 		if (descriptorAllocators[uav.index].AllocateUAV(
-			handle.resource, &desc, nullptr) == size_t(-1))
+			handle.resource, &desc, nullptr, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -148,7 +148,7 @@ bool Texture2DComponent::CreateViews(
 		auto desc = CreateRTV(replacements.rt != std::nullopt ? *replacements.rt :
 			rtv.desc, handle);
 		if (descriptorAllocators[rtv.index].AllocateRTV(
-			handle.resource, &desc) == size_t(-1))
+			handle.resource, &desc, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -159,7 +159,7 @@ bool Texture2DComponent::CreateViews(
 		auto desc = CreateDSV(replacements.ds != std::nullopt ? *replacements.ds :
 			dsv.desc, handle);
 		if (descriptorAllocators[dsv.index].AllocateDSV(
-			handle.resource, &desc) == size_t(-1))
+			handle.resource, &desc, resourceIndex) == size_t(-1))
 		{
 			return false;
 		}
@@ -201,13 +201,19 @@ ResourceIndex Texture2DComponent::CreateTexture(
 		return toReturn;
 
 	TextureHandle handle = textureAllocator.GetHandle(toReturn);
-	if (!CreateViews(replacementViews, handle))
+	if (!CreateViews(replacementViews, handle, toReturn))
 	{
 		textureAllocator.DeallocateTexture(toReturn);
 		return ResourceIndex(-1);
 	}
 
 	return toReturn;
+}
+
+void Texture2DComponent::RemoveComponent(ResourceIndex indexToRemove)
+{
+	ResourceComponent::RemoveComponent(indexToRemove);
+	textureAllocator.DeallocateTexture(indexToRemove);
 }
 
 D3D12_RESOURCE_STATES Texture2DComponent::GetCurrentState(

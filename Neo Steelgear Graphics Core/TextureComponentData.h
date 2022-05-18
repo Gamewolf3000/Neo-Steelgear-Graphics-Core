@@ -46,6 +46,9 @@ public:
 	Texture2DComponentData(Texture2DComponentData&& other) = default;
 	Texture2DComponentData& operator=(Texture2DComponentData&& other) = default;
 
+	virtual void Initialize(ID3D12Device* deviceToUse, FrameType totalNrOfFrames,
+		UpdateType componentUpdateType, unsigned int totalSize) override;
+
 	void AddComponent(ResourceIndex resourceIndex, unsigned int dataSize,
 		ID3D12Resource* resource);
 	void RemoveComponent(ResourceIndex resourceIndex) override;

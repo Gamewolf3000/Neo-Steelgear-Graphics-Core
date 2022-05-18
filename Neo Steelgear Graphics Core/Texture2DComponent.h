@@ -67,7 +67,7 @@ private:
 
 	bool CreateViews(
 		const Texture2DComponentTemplate::TextureReplacementViews& replacements,
-		const TextureHandle& handle);
+		const TextureHandle& handle, ResourceIndex& resourceIndex);
 	
 public:
 	Texture2DComponent() = default;
@@ -84,6 +84,8 @@ public:
 		const TextureComponent<Texture2DShaderResourceDesc, 
 		Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc, 
 		Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews = {});
+
+	void RemoveComponent(ResourceIndex indexToRemove);
 
 	D3D12_RESOURCE_STATES GetCurrentState(ResourceIndex resourceIndex);
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(ResourceIndex resourceIndex,
