@@ -165,7 +165,7 @@
     <ClCompile Include="ResourceUploader.cpp" />
     <ClCompile Include="Texture2DComponent.cpp" />
     <ClCompile Include="TextureAllocator.cpp" />
-    <ClCompile Include="TextureComponentData.cpp" />
+    <ClCompile Include="Texture2DComponentData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BufferAllocator.h" />
@@ -187,7 +187,7 @@
     <ClInclude Include="Texture2DComponent.h" />
     <ClInclude Include="TextureAllocator.h" />
     <ClInclude Include="TextureComponent.h" />
-    <ClInclude Include="TextureComponentData.h" />
+    <ClInclude Include="Texture2DComponentData.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

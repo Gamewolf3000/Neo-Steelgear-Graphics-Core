@@ -16,25 +16,16 @@ void BufferComponentData::HandleInitializeOnlyUpdate(
 		unsigned char* source = data.data();
 		source += headers[i].startOffset;
 
-		if (type != UpdateType::MAP_UPDATE)
-		{
-			bool result = uploader.UploadBufferResourceData(handle.resource,
-				commandList, source, handle.startOffset, headers[i].dataSize,
-				componentAlignment);
-
-			if (!result)
-				headers[i].specifics.framesLeft += nrOfFrames; // Let it loop, not the best solution
-		}
-		else
-		{
-			componentToUpdate.UpdateMappedBuffer(headers[i].resourceIndex,
-				source);
-		}
+		bool result = uploader.UploadBufferResourceData(handle.resource,
+			commandList, source, handle.startOffset, headers[i].dataSize,
+			componentAlignment);
+		if (!result)
+			headers[i].specifics.framesLeft += nrOfFrames; // Let it loop, not the best solution
 
 		--headers[i].specifics.framesLeft;
 
 		// If INITIALISE_ONLY is used and all frames are updated then we are finished with this one
-		if (type == UpdateType::INITIALISE_ONLY && headers[i].specifics.framesLeft == 0)
+		if (headers[i].specifics.framesLeft == 0)
 		{
 			RemoveComponent(headers[i].resourceIndex);
 			--i;

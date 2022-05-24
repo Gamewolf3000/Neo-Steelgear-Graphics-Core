@@ -1,4 +1,4 @@
-#include "TextureComponentData.h"
+#include "Texture2DComponentData.h"
 
 void Texture2DComponentData::UpdateExistingSubresourceHeaders(
 	size_t indexOfOriginalChange, std::int16_t entryDifference)
@@ -19,18 +19,20 @@ void Texture2DComponentData::UpdateExistingSubresourceHeaders(
 
 	//std::memmove(destination, source, totalEntriesToMove);
 
-	SubresourceHeader* destination = subresourceHeaders.data();
-	destination += headers[indexOfOriginalChange].specifics.startSubresource;
-	destination += headers[indexOfOriginalChange].specifics.nrOfSubresources;
-	SubresourceHeader* source = destination;
-	destination += entryDifference;
+
 	size_t originalEntryEnd =
 		headers[indexOfOriginalChange].specifics.startSubresource +
 		headers[indexOfOriginalChange].specifics.nrOfSubresources;
 	size_t totalEntriesToMove = subresourceHeaders.size() - originalEntryEnd;
 
-	if (subresourceHeaders.size() + entryDifference > subresourceHeaders.capacity())
+	if(entryDifference > 0)
 		subresourceHeaders.resize(subresourceHeaders.size() + entryDifference);
+
+	SubresourceHeader* destination = subresourceHeaders.data();
+	destination += headers[indexOfOriginalChange].specifics.startSubresource;
+	destination += headers[indexOfOriginalChange].specifics.nrOfSubresources;
+	SubresourceHeader* source = destination;
+	destination += entryDifference;
 
 	std::memmove(destination, source, totalEntriesToMove * sizeof(SubresourceHeader));
 }
@@ -42,16 +44,17 @@ void Texture2DComponentData::SetSubresourceHeaders(size_t firstIndex,
 	size_t currentOffset = 0;
 	for (std::uint8_t i = 0; i < nrOfSubresources; ++i)
 	{
-		UINT64 totalBytes = 0;
+		UINT nrOfRows = 0;
+		UINT64 rowSize = 0;
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-		device->GetCopyableFootprints(&desc, i, 1, 0, &footprint, nullptr,
-			nullptr, &totalBytes);
+		device->GetCopyableFootprints(&desc, i, 1, 0, &footprint, &nrOfRows,
+			&rowSize, nullptr);
 
 		subresourceHeaders[firstIndex + i].framesLeft = 0;
 		subresourceHeaders[firstIndex + i].startOffset = currentOffset;
 		subresourceHeaders[firstIndex + i].width = footprint.Footprint.Width;
 		subresourceHeaders[firstIndex + i].height = footprint.Footprint.Height;
-		currentOffset += static_cast<size_t>(totalBytes);
+		currentOffset += static_cast<size_t>(nrOfRows * rowSize);
 	}
 }
 
@@ -195,6 +198,7 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 		destination += subresourceHeaders[subresourceSlot].startOffset;
 		size_t dataSize = subresourceHeaders[subresourceSlot].width *
 			subresourceHeaders[subresourceSlot].height * texelSizeInBytes;
+
 		std::memcpy(destination, dataPtr, dataSize);
 		subresourceHeaders[subresourceSlot].framesLeft = nrOfFrames;
 		headers[resourceIndex].specifics.needUpdating = true;
@@ -214,6 +218,7 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 			destination += subresourceHeaders[subresourceSlot].startOffset;
 			size_t dataSize = subresourceHeaders[subresourceSlot].width *
 				subresourceHeaders[subresourceSlot].height * texelSizeInBytes;
+
 			std::memcpy(destination, dataPtr, dataSize);
 			subresourceHeaders[subresourceSlot].framesLeft = nrOfFrames;
 			header.specifics.needUpdating = true;
@@ -284,8 +289,13 @@ void Texture2DComponentData::UpdateComponentResources(
 			uploadInfo.width = subresource.width;
 			uploadInfo.height = subresource.height;
 			uploadInfo.depth = 1;
-			uploader.UploadTextureResourceData(handle.resource, commandList,
-				source, uploadInfo, 0);
+			bool result = uploader.UploadTextureResourceData(handle.resource, commandList,
+				source, uploadInfo, j);
+
+			if(result == false && type == UpdateType::COPY_UPDATE)
+				throw std::runtime_error("Could not update data for texture2D component");
+			else if (result == false && type == UpdateType::INITIALISE_ONLY)
+				subresource.framesLeft += nrOfFrames;
 
 			--subresource.framesLeft;
 		}

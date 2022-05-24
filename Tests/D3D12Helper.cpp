@@ -361,6 +361,5 @@ void CheckResourceData(ID3D12Resource* resource, UINT subresource,
 	if (FAILED(hr))
 		throw std::runtime_error("Mapping readback buffer failed!");
 
-
 	ASSERT_EQ(memcmp(mapped + startIndex, data, stopIndex - startIndex), 0);
 }

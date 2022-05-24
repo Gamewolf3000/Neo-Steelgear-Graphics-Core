@@ -5,7 +5,7 @@
 
 #include "FrameResourceComponent.h"
 #include "Texture2DComponent.h"
-#include "TextureComponentData.h"
+#include "Texture2DComponentData.h"
 
 struct Texture2DCreationOperation
 {
