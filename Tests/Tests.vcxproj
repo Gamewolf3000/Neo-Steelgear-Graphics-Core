@@ -50,6 +50,7 @@
     </ClCompile>
     <ClCompile Include="TestDescriptorAllocator.cpp" />
     <ClCompile Include="TestFrameBufferComponent.cpp" />
+    <ClCompile Include="TestFrameTexture2DComponent.cpp" />
     <ClCompile Include="TestHeapHelper.cpp" />
     <ClCompile Include="TestResourceUploader.cpp" />
     <ClCompile Include="TestStableVector.cpp" />

@@ -61,7 +61,6 @@ template<typename ViewDesc>
 struct DescriptorAllocationInfo
 {
 	ViewType viewType;
-	DescriptorInfo descriptorInfo;
 	ViewDesc viewDesc;
 	HeapType heapType;
 
@@ -80,17 +79,15 @@ struct DescriptorAllocationInfo
 		} owned;
 	} descriptorHeapInfo;
 
-	DescriptorAllocationInfo(ViewType type, const DescriptorInfo& info, 
-		const ViewDesc& viewDesc, size_t nrOfDescriptors) : viewType(type),
-		descriptorInfo(info), viewDesc(viewDesc)
+	DescriptorAllocationInfo(ViewType type, const ViewDesc& viewDesc,
+		size_t nrOfDescriptors) : viewType(type), viewDesc(viewDesc)
 	{
 		heapType = HeapType::OWNED;
 		descriptorHeapInfo.owned.nrOfDescriptors = nrOfDescriptors;
 	}
 
-	DescriptorAllocationInfo(ViewType type, DescriptorInfo info,
-		ID3D12DescriptorHeap* heap, size_t nrOfDescriptors, 
-		size_t startDescriptorIndex = 0) : viewType(type), descriptorInfo(info)
+	DescriptorAllocationInfo(ViewType type, ID3D12DescriptorHeap* heap,
+		size_t nrOfDescriptors, size_t startDescriptorIndex = 0) : viewType(type)
 	{
 		heapType = HeapType::EXTERNAL;
 		descriptorHeapInfo.external.heap = heap;

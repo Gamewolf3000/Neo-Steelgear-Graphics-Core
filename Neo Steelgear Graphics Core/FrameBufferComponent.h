@@ -160,12 +160,15 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 	if (toReturn == ResourceIndex(-1))
 		return ResourceIndex(-1);
 
-	typename FrameResourceComponent<BufferComponent, Frames,
-		BufferCreationOperation>::StoredLifetimeOperation lifetimeOperation;
-	lifetimeOperation.type = BufferLifetimeOperationType::CREATION;
-	lifetimeOperation.framesLeft = Frames - 1;
-	lifetimeOperation.creation = { nrOfElements, replacementViews };
-	this->storedLifetimeOperations.push_back(lifetimeOperation);
+	if constexpr (Frames != 1)
+	{
+		typename FrameResourceComponent<BufferComponent, Frames,
+			BufferCreationOperation>::StoredLifetimeOperation lifetimeOperation;
+		lifetimeOperation.type = BufferLifetimeOperationType::CREATION;
+		lifetimeOperation.framesLeft = Frames - 1;
+		lifetimeOperation.creation = { nrOfElements, replacementViews };
+		this->storedLifetimeOperations.push_back(lifetimeOperation);
+	}
 
 	auto handle =
 		this->resourceComponents[this->activeFrame].GetBufferHandle(toReturn);

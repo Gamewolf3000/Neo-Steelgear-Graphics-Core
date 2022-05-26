@@ -12,13 +12,11 @@
 struct TextureComponentInfo
 {
 	TextureInfo textureInfo;
-	bool mappedResource;
 	ResourceHeapInfo heapInfo;
 
 	TextureComponentInfo(DXGI_FORMAT format, std::uint8_t texelSize,
-		bool mapResources, const ResourceHeapInfo& heapInfo) :
-		textureInfo({format, texelSize}), mappedResource(mapResources),
-		heapInfo(heapInfo)
+		const ResourceHeapInfo& heapInfo) :
+		textureInfo({format, texelSize}), heapInfo(heapInfo)
 	{
 		// Empty
 	}
@@ -101,7 +99,7 @@ protected:
 		const DescDSV& desc, const TextureHandle& handle) = 0;
 
 	virtual bool CreateViews(const TextureReplacementViews& replacements, 
-		const TextureHandle& handle) = 0;
+		const TextureHandle& handle, ResourceIndex& resourceIndex) = 0;
 
 	void InitializeTextureAllocator(ID3D12Device* device,
 		const TextureComponentInfo& textureInfo);
@@ -155,15 +153,15 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeTextureAllocator
 		auto& allocationInfo = textureInfo.heapInfo.info.external;
 
 		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			textureInfo.mappedResource, views, allocationInfo.heap,
-			allocationInfo.startOffset, allocationInfo.endOffset);
+			views, allocationInfo.heap, allocationInfo.startOffset,
+			allocationInfo.endOffset);
 	}
 	else
 	{
 		auto& allocationInfo = textureInfo.heapInfo.info.owned;
 
 		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			textureInfo.mappedResource, views, allocationInfo.heapSize);
+			views, allocationInfo.heapSize);
 	}
 }
 
@@ -176,23 +174,40 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeDescriptorAlloca
 	for (size_t i = 0; i < descriptorInfo.size(); ++i)
 	{
 		auto& info = descriptorInfo[i];
+		D3D12_DESCRIPTOR_HEAP_TYPE descriptorType = 
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		switch (info.viewType)
+		{
+		case ViewType::RTV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			break;
+		case ViewType::DSV:
+			descriptorType = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+			break;
+		default:
+			break;
+		}
 
 		if (info.heapType == HeapType::EXTERNAL)
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.external;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.heap, allocationInfo.startIndex,
-				allocationInfo.nrOfDescriptors);
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				allocationInfo.heap, allocationInfo.startIndex,
+				nrOfDescriptors);
 		}
 		else
 		{
 			auto& allocationInfo = info.descriptorHeapInfo.owned;
+			size_t nrOfDescriptors = allocationInfo.nrOfDescriptors;
+			nrOfDescriptors = max(nrOfDescriptors, nrOfDescriptors + 1);
 
 			descriptorAllocators.push_back(DescriptorAllocator());
-			descriptorAllocators.back().Initialize(info.descriptorInfo,
-				device, allocationInfo.nrOfDescriptors);
+			descriptorAllocators.back().Initialize(descriptorType, device,
+				nrOfDescriptors);
 		}
 
 		switch (info.viewType)

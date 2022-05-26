@@ -6,20 +6,6 @@ void Texture2DComponentData::UpdateExistingSubresourceHeaders(
 	for (size_t i = indexOfOriginalChange + 1; i < headers.size(); ++i)
 		headers[i].specifics.startSubresource += entryDifference;
 
-	//SubresourceHeader* destination = subresourceHeaders.data();
-	//destination += headers[indexOfOriginalChange].specifics.nrOfSubresources;
-	//SubresourceHeader* source = destination - entryDifference;
-	//size_t originalEntryEnd =
-	//	headers[indexOfOriginalChange].specifics.startSubresource +
-	//	headers[indexOfOriginalChange].specifics.nrOfSubresources;
-	//size_t totalEntriesToMove = subresourceHeaders.size() - originalEntryEnd;
-
-	//if (subresourceHeaders.size() + entryDifference > subresourceHeaders.capacity())
-	//	subresourceHeaders.resize(subresourceHeaders.size() + entryDifference);
-
-	//std::memmove(destination, source, totalEntriesToMove);
-
-
 	size_t originalEntryEnd =
 		headers[indexOfOriginalChange].specifics.startSubresource +
 		headers[indexOfOriginalChange].specifics.nrOfSubresources;

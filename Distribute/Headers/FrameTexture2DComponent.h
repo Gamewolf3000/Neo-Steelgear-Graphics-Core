@@ -5,7 +5,7 @@
 
 #include "FrameResourceComponent.h"
 #include "Texture2DComponent.h"
-#include "TextureComponentData.h"
+#include "Texture2DComponentData.h"
 
 struct Texture2DCreationOperation
 {
@@ -18,6 +18,7 @@ class FrameTexture2DComponent : public FrameResourceComponent<
 	Texture2DComponent, Frames, Texture2DCreationOperation>
 {
 private:
+	ID3D12Device* device = nullptr;
 
 	typedef typename FrameResourceComponent<Texture2DComponent, Frames,
 		Texture2DCreationOperation>::LifetimeOperationType Texture2DLifetimeOperationType;
@@ -56,6 +57,8 @@ public:
 	void ChangeToState(ResourceIndex resourceIndex,
 		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState);
+
+	TextureHandle GetTextureHandle(ResourceIndex index);
 };
 
 template<FrameType Frames>
@@ -88,9 +91,10 @@ template<FrameType Frames>
 inline FrameTexture2DComponent<Frames>::FrameTexture2DComponent(
 	FrameTexture2DComponent&& other) noexcept : FrameResourceComponent<
 	Texture2DComponent, Frames, Texture2DCreationOperation>(std::move(other)),
-	texelSize(other.texelSize), textureFormat(other.textureFormat), 
-	componentData(std::move(other.componentData))
+	device(other.device), texelSize(other.texelSize), 
+	textureFormat(other.textureFormat), componentData(std::move(other.componentData))
 {
+	other.device = nullptr;
 	other.texelSize = 0;
 	other.textureFormat = DXGI_FORMAT_UNKNOWN;
 }
@@ -103,12 +107,14 @@ FrameTexture2DComponent<Frames>::operator=(FrameTexture2DComponent&& other) noex
 	{
 		FrameResourceComponent<Texture2DComponent,
 			Frames, Texture2DCreationOperation>::operator=(std::move(other));
+		device = other.device;
 		texelSize = other.texelSize;
 		textureFormat = other.textureFormat;
 		componentData = std::move(other.componentData);
 
+		other.device = nullptr;
 		other.texelSize = 0;
-		other.textureFormat = 0;
+		other.textureFormat = DXGI_FORMAT_UNKNOWN;
 	}
 
 	return *this;
@@ -123,6 +129,7 @@ inline void FrameTexture2DComponent<Frames>::Initialize(ID3D12Device* deviceToUs
 	FrameResourceComponent<Texture2DComponent, Frames,
 		Texture2DCreationOperation>::Initialize(deviceToUse, textureInfo,
 			descriptorInfo);
+	device = deviceToUse;
 	texelSize = textureInfo.textureInfo.texelSize;
 	textureFormat = textureInfo.textureInfo.format;
 	if (componentUpdateType != UpdateType::INITIALISE_ONLY &&
@@ -165,17 +172,39 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 	if (toReturn == ResourceIndex(-1))
 		return ResourceIndex(-1);
 
-	typename FrameResourceComponent<Texture2DComponent, Frames,
-		Texture2DCreationOperation>::StoredLifetimeOperation lifetimeOperation;
-	lifetimeOperation.type = Texture2DLifetimeOperationType::CREATION;
-	lifetimeOperation.framesLeft = Frames - 1;
-	lifetimeOperation.creation = { allocationInfo, replacementViews };
-	this->storedLifetimeOperations.push_back(lifetimeOperation);
-	unsigned int totalSize = static_cast<unsigned int>(
-		allocationInfo.dimensions.width * allocationInfo.dimensions.height *
-		allocationInfo.dimensions.depthOrArraySize * texelSize);
+	if (Frames != 1)
+	{
+		typename FrameResourceComponent<Texture2DComponent, Frames,
+			Texture2DCreationOperation>::StoredLifetimeOperation lifetimeOperation;
+		lifetimeOperation.type = Texture2DLifetimeOperationType::CREATION;
+		lifetimeOperation.framesLeft = Frames - 1;
+		lifetimeOperation.creation = { allocationInfo, replacementViews };
+		this->storedLifetimeOperations.push_back(lifetimeOperation);
+	}
+
 	TextureHandle handle = 
 		this->resourceComponents[this->activeFrame].GetTextureHandle(toReturn);
+	auto desc = handle.resource->GetDesc();
+	unsigned int totalSize = 0;
+
+	D3D12_FEATURE_DATA_FORMAT_INFO formatInfo = { desc.Format, 0 };
+	std::uint8_t planeCount = 1;
+	HRESULT hr = device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO,
+		&formatInfo, sizeof(formatInfo));
+	if (SUCCEEDED(hr))
+		planeCount = formatInfo.PlaneCount;
+
+	UINT nrOfSubresources = planeCount * desc.DepthOrArraySize * desc.MipLevels;
+	std::vector<UINT> rows(nrOfSubresources);
+	std::vector<UINT64> rowSizes(nrOfSubresources);
+
+	device->GetCopyableFootprints(&desc, 0, nrOfSubresources, 0, nullptr,
+		rows.data(), rowSizes.data(), nullptr);
+
+	for (unsigned int subresource = 0; subresource < nrOfSubresources; ++subresource)
+		totalSize += rows[subresource] * rowSizes[subresource];
+
+	//LOOP HERE AND DETERMINE TOTAL SIZE!
 	this->componentData.AddComponent(toReturn, totalSize, handle.resource);
 
 	return toReturn;
@@ -235,4 +264,11 @@ inline void FrameTexture2DComponent<Frames>::ChangeToState(
 			this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
 				resourceIndex, newState));
 	}
+}
+
+template<FrameType Frames>
+inline TextureHandle FrameTexture2DComponent<Frames>::GetTextureHandle(
+	ResourceIndex index)
+{
+	return this->resourceComponents[this->activeFrame].GetTextureHandle(index);
 }

@@ -12,47 +12,6 @@ TEST(Texture2DComponentTest, DefaultInitialisable)
 	Texture2DComponent textureComponent;
 }
 
-std::vector<DescriptorAllocationInfo<Texture2DViewDesc>> 
-CreateDescriptorAllocationInfo(size_t maxNrOfTextures, const AllowedViews& allowedViews)
-{
-	std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
-		toReturn;
-
-	if (allowedViews.srv)
-	{
-		Texture2DViewDesc texture2DSRVDesc(ViewType::SRV);
-		DescriptorAllocationInfo<Texture2DViewDesc> srvInfo(
-			ViewType::SRV, texture2DSRVDesc, maxNrOfTextures);
-		toReturn.push_back(srvInfo);
-	}
-
-	if (allowedViews.uav)
-	{
-		Texture2DViewDesc texture2DUAVDesc(ViewType::UAV);
-		DescriptorAllocationInfo<Texture2DViewDesc> uavInfo(
-			ViewType::UAV, texture2DUAVDesc, maxNrOfTextures);
-		toReturn.push_back(uavInfo);
-	}
-
-	if (allowedViews.rtv)
-	{
-		Texture2DViewDesc texture2DRTVDesc(ViewType::RTV);
-		DescriptorAllocationInfo<Texture2DViewDesc> rtvInfo(
-			ViewType::RTV, texture2DRTVDesc, maxNrOfTextures);
-		toReturn.push_back(rtvInfo);
-	}
-
-	if (allowedViews.dsv)
-	{
-		Texture2DViewDesc texture2DDSVDesc(ViewType::DSV);
-		DescriptorAllocationInfo<Texture2DViewDesc> dsvInfo(
-			ViewType::DSV, texture2DDSVDesc, maxNrOfTextures);
-		toReturn.push_back(dsvInfo);
-	}
-
-	return toReturn;
-}
-
 void InitializationHelper(std::function<void(ID3D12Device*, 
 	const TextureComponentInfo&,
 	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>&)> func)
@@ -120,38 +79,6 @@ TEST(Texture2DComponentTest, RuntimeInitialisable)
 	};
 
 	InitializationHelper(lambda);
-}
-
-AllowedViews ReverseDescriptorAllocationInfo(
-	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>&
-	descriptorAllocationInfo)
-{
-	AllowedViews toReturn;
-	toReturn.srv = false;
-
-	for (auto& descriptorInfo : descriptorAllocationInfo)
-	{
-		switch (descriptorInfo.viewType)
-		{
-		case ViewType::SRV:
-			toReturn.srv = true;
-			break;
-		case ViewType::UAV:
-			toReturn.uav = true;
-			break;
-		case ViewType::RTV:
-			toReturn.rtv = true;
-			break;
-		case ViewType::DSV:
-			toReturn.dsv = true;
-			break;
-		default:
-			throw "Illegal view type for texture detected";
-			break;
-		}
-	}
-
-	return toReturn;
 }
 
 TEST(Texture2DComponentTest, CreatesTexturesCorrectly)

@@ -34,7 +34,7 @@ private:
 
 	struct UploadChunk
 	{
-		size_t uploadId;
+		// EMPTY
 	};
 
 	HeapHelper<UploadChunk> uploadChunks;
@@ -43,8 +43,6 @@ private:
 	void AllocateBuffer();
 
 	size_t AlignAdress(size_t dataSize, size_t alignment);
-
-	void UseChunk(size_t freeChunkIndex);
 
 	void CopyBufferRegionToResource(ID3D12Resource* toUploadTo, 
 		ID3D12GraphicsCommandList* commandList, void* data, size_t offsetFromStart,
@@ -71,19 +69,19 @@ public:
 	void Initialize(ID3D12Device* deviceToUse, size_t heapSize,
 		AllocationStrategy strategy);
 
-	size_t UploadBufferResourceData(ID3D12Resource* toUploadTo, 
+	bool UploadBufferResourceData(ID3D12Resource* toUploadTo, 
 		ID3D12GraphicsCommandList* commandList, void* data,
 		size_t offsetFromStart, size_t dataSize, size_t alignment);
 
-	size_t UploadTextureResourceData(ID3D12Resource* toUploadTo,
+	bool UploadTextureResourceData(ID3D12Resource* toUploadTo,
 		ID3D12GraphicsCommandList* commandList, void* data,
-		const TextureUploadInfo& TextureUploadInfo, unsigned int subresourceIndex);
+		const TextureUploadInfo& TextureUploadInfo, 
+		unsigned int subresourceIndex = 0);
 
-	size_t UploadResource(ID3D12Resource* toUploadTo,
-		ID3D12GraphicsCommandList* commandList, void* data,
-		size_t alignment, unsigned int xOffset = 0, unsigned int yOffset = 0,
-		unsigned int zOffset = 0, unsigned int subresource = 0);
+	//bool UploadResource(ID3D12Resource* toUploadTo,
+	//	ID3D12GraphicsCommandList* commandList, void* dataPtr, size_t dataSize,
+	//	size_t alignment, unsigned int xOffset = 0, unsigned int yOffset = 0,
+	//	unsigned int zOffset = 0, unsigned int subresource = 0);
 
-	void ReturnUsedMemory(size_t latestFree);
 	void RestoreUsedMemory();
 };

@@ -225,69 +225,6 @@ bool ResourceUploader::UploadTextureResourceData(ID3D12Resource* toUploadTo,
 	return true;
 }
 
-//bool ResourceUploader::UploadResource(ID3D12Resource* toUploadTo,
-//	ID3D12GraphicsCommandList* commandList, void* dataPtr, size_t dataSize,
-//	size_t alignment, unsigned int xOffset, unsigned int yOffset,
-//	unsigned int zOffset, unsigned int subresource)
-//{
-//	D3D12_RESOURCE_DESC resourceDesc = toUploadTo->GetDesc();
-//	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-//	UINT numRows = 0;
-//	UINT64 rowSizeInBytes = 0;
-//	UINT64 totalBytes = 0;
-//	device->GetCopyableFootprints(&resourceDesc, subresource, 1, 0, &footprint,
-//		&numRows, &rowSizeInBytes, &totalBytes);
-//
-//	size_t chunkIndex = uploadChunks.AllocateChunk(dataSize,
-//		allocationStrategy, alignment);
-//
-//	if (chunkIndex == size_t(-1))
-//		return false;
-//
-//	size_t alignedOffset = AlignAdress(
-//		uploadChunks.GetStartOfChunk(chunkIndex), alignment);
-//
-//	if (resourceDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
-//	{
-//		std::uint64_t sourceOffset = 0;
-//		std::uint64_t destinationOffset = alignedOffset;
-//		for (UINT row = 0; row < numRows; ++row)
-//		{
-//			std::memcpy(mappedPtr + destinationOffset,
-//				static_cast<unsigned char*>(dataPtr) + sourceOffset,
-//				static_cast<size_t>(rowSizeInBytes - xOffset));
-//			sourceOffset += rowSizeInBytes - xOffset;
-//			destinationOffset += footprint.Footprint.RowPitch;
-//		}
-//
-//		D3D12_TEXTURE_COPY_LOCATION destination;
-//		destination.pResource = toUploadTo;
-//		destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-//		destination.SubresourceIndex = subresource;
-//
-//		D3D12_TEXTURE_COPY_LOCATION source;
-//		source.pResource = buffer;
-//		source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-//		source.PlacedFootprint.Offset = alignedOffset;
-//		source.PlacedFootprint.Footprint.Width = footprint.Footprint.Width;
-//		source.PlacedFootprint.Footprint.Height = footprint.Footprint.Height;
-//		source.PlacedFootprint.Footprint.Depth = footprint.Footprint.Depth;
-//		source.PlacedFootprint.Footprint.RowPitch = footprint.Footprint.RowPitch;
-//		source.PlacedFootprint.Footprint.Format = resourceDesc.Format;
-//
-//		commandList->CopyTextureRegion(&destination, xOffset, yOffset,
-//		zOffset, &source, nullptr);
-//	}
-//	else
-//	{
-//		std::memcpy(mappedPtr + alignedOffset, dataPtr, dataSize);
-//		commandList->CopyBufferRegion(toUploadTo, xOffset, buffer, 
-//			alignedOffset, dataSize);
-//	}
-//
-//	return true;
-//}
-
 void ResourceUploader::RestoreUsedMemory()
 {
 	uploadChunks.ClearHeap();

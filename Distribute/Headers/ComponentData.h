@@ -50,6 +50,8 @@ public:
 		UpdateType componentUpdateType, unsigned int totalSize);
 
 	virtual void RemoveComponent(ResourceIndex resourceIndex) = 0;
+
+	void* GetComponentData(ResourceIndex resourceIndex);
 };
 
 template<typename SpecificData>
@@ -65,10 +67,6 @@ void ComponentData<SpecificData>::UpdateExistingHeaders(size_t indexOfOriginalCh
 		jointSize += headers[i].dataSize;
 	}
 
-	//unsigned char* destination = data.data();
-	//destination += headers[indexOfOriginalChange].startOffset;
-	//destination += headers[indexOfOriginalChange].dataSize;
-	//unsigned char* source = destination - sizeDifference;
 	unsigned char* destination = data.data();
 	destination += headers[indexOfOriginalChange].startOffset;
 	destination += headers[indexOfOriginalChange].dataSize;
@@ -92,4 +90,30 @@ void ComponentData<SpecificData>::Initialize(ID3D12Device* deviceToUse,
 		data.resize(totalSize);
 		usedDataSize = totalSize;
 	}
+}
+
+template<typename SpecificData>
+inline void* ComponentData<SpecificData>::GetComponentData(
+	ResourceIndex resourceIndex)
+{
+	unsigned char* toReturn = nullptr;
+
+	if (type != UpdateType::INITIALISE_ONLY && type != UpdateType::NONE
+		&& resourceIndex < headers.size())
+	{
+		toReturn = data.data() + headers[resourceIndex].startOffset;
+	}
+	else
+	{
+		for (auto& header : headers)
+		{
+			if (header.resourceIndex == resourceIndex)
+			{
+				toReturn = data.data() + header.startOffset;
+				break;
+			}
+		}
+	}
+
+	return toReturn;
 }

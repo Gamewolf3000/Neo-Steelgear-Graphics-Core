@@ -24,7 +24,8 @@ protected:
 	} heapData;
 
 	D3D12_RESOURCE_FLAGS CreateBindFlag();
-	ID3D12Heap* AllocateHeap(size_t size, bool uploadHeap, ID3D12Device* device);
+	ID3D12Heap* AllocateHeap(size_t size, bool uploadHeap, D3D12_HEAP_FLAGS flags,
+		ID3D12Device* device);
 	ID3D12Resource* AllocateResource(const D3D12_RESOURCE_DESC& desc, 
 		D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* clearValue,
 		size_t heapOffset, ID3D12Device* device);
@@ -33,7 +34,7 @@ protected:
 
 public:
 	ResourceAllocator() = default;
-	~ResourceAllocator() = default;
+	virtual ~ResourceAllocator();
 	ResourceAllocator(const ResourceAllocator& other) = default;
 	ResourceAllocator& operator=(const ResourceAllocator& other) = default;
 	ResourceAllocator(ResourceAllocator&& other) noexcept;

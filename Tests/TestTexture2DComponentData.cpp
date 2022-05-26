@@ -265,27 +265,6 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 	InitializationHelper(lambda);
 }
 
-void CheckTextureData(ID3D12Resource* readbackBuffer,
-	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints,
-	std::vector<UINT> rows, std::vector<UINT64> rowSizes, unsigned char* data)
-{
-	unsigned char* mapped = nullptr;
-	HRESULT hr = readbackBuffer->Map(0, nullptr,
-		reinterpret_cast<void**>(&mapped));
-
-	unsigned char* currentData = data;
-
-	for (unsigned int subresource = 0; subresource < footprints.size(); ++subresource)
-	{
-		unsigned char* currentMapped = mapped + footprints[subresource].Offset;
-		for (unsigned int row = 0; row < rows[subresource]; ++row)
-		{
-			ASSERT_EQ(memcmp(currentMapped, currentData, rowSizes[subresource]), 0);
-			currentMapped += footprints[subresource].Footprint.RowPitch;
-			currentData += rowSizes[subresource];
-		}
-	}
-}
 TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 {
 	auto lambda = [](ID3D12Device* device, unsigned int totalNrOfFrames,

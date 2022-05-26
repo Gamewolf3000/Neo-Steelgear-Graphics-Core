@@ -67,7 +67,7 @@ private:
 
 	bool CreateViews(
 		const Texture2DComponentTemplate::TextureReplacementViews& replacements,
-		const TextureHandle& handle);
+		const TextureHandle& handle, ResourceIndex& resourceIndex);
 	
 public:
 	Texture2DComponent() = default;
@@ -85,11 +85,10 @@ public:
 		Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc, 
 		Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews = {});
 
+	void RemoveComponent(ResourceIndex indexToRemove);
+
 	D3D12_RESOURCE_STATES GetCurrentState(ResourceIndex resourceIndex);
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(ResourceIndex resourceIndex,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
-
-	void UpdateMappedTexture(ResourceIndex index, void* data,
-		unsigned int subresource);
 };

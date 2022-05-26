@@ -5,13 +5,6 @@
 
 #include "StableVector.h"
 
-struct DescriptorInfo
-{
-	size_t descriptorSize = 0;
-	D3D12_DESCRIPTOR_HEAP_TYPE type = 
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-};
-
 class DescriptorAllocator
 {
 private:
@@ -19,7 +12,9 @@ private:
 	{
 		bool heapOwned = false;
 		ID3D12DescriptorHeap* heap = nullptr;
-		DescriptorInfo descriptorInfo;
+		D3D12_DESCRIPTOR_HEAP_TYPE descriptorType = 
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		size_t descriptorSize = 0;
 		size_t startIndex = size_t(-1);
 		size_t endIndex = size_t(-1);
 	} heapData;
@@ -33,8 +28,9 @@ private:
 	StableVector<StoredDescriptor> descriptors;
 
 	ID3D12DescriptorHeap* AllocateHeap(size_t nrOfDescriptors);
-	size_t GetFreeDescriptorIndex();
-	bool AllocationHelper(size_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle);
+	size_t GetFreeDescriptorIndex(size_t indexInHeap);
+	bool AllocationHelper(size_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle,
+		size_t indexInHeap);
 
 public:
 	DescriptorAllocator() = default;
@@ -44,21 +40,26 @@ public:
 	DescriptorAllocator(DescriptorAllocator&& other) noexcept;
 	DescriptorAllocator& operator=(DescriptorAllocator&& other) noexcept;
 
-	void Initialize(const DescriptorInfo& descriptorInfo, ID3D12Device* deviceToUse,
+	void Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, ID3D12Device* deviceToUse,
 		ID3D12DescriptorHeap* heap, size_t startIndex, size_t nrOfDescriptors);
-	void Initialize(const DescriptorInfo& descriptorInfo, ID3D12Device* deviceToUse,
-		size_t nrOfDescriptors);
+	void Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType,
+		ID3D12Device* deviceToUse, size_t nrOfDescriptors);
 
 	size_t AllocateSRV(ID3D12Resource* resource,
-		D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);
+		D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr, 
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateDSV(ID3D12Resource* resource,
-		D3D12_DEPTH_STENCIL_VIEW_DESC* desc = nullptr);
+		D3D12_DEPTH_STENCIL_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateRTV(ID3D12Resource* resource,
-		D3D12_RENDER_TARGET_VIEW_DESC* desc = nullptr);
+		D3D12_RENDER_TARGET_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 	size_t AllocateUAV(ID3D12Resource* resource,
 		D3D12_UNORDERED_ACCESS_VIEW_DESC* desc = nullptr,
-		ID3D12Resource* counterResource = nullptr);
-	size_t AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr);
+		ID3D12Resource* counterResource = nullptr, 
+		size_t indexInHeap = size_t(-1));
+	size_t AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr,
+		size_t indexInHeap = size_t(-1));
 
 	void DeallocateDescriptor(size_t index);
 

@@ -108,7 +108,8 @@ private:
 	D3D12_RENDER_TARGET_VIEW_DESC CreateRTV(
 		const BufferViewDesc::RenderTargetDesc& desc, const BufferHandle& handle);
 
-	bool CreateViews(const BufferReplacementViews& replacements, const BufferHandle& handle);
+	bool CreateViews(const BufferReplacementViews& replacements,
+		const BufferHandle& handle, ResourceIndex& resourceIndex);
 
 	void InitializeBufferAllocator(ID3D12Device* device,
 		const BufferComponentInfo& bufferInfo);
@@ -141,7 +142,8 @@ public:
 		GetDescriptorHeapRTV(ResourceIndex indexOffset = 0) const override;
 	bool HasDescriptorsOfType(ViewType type) const override;
 
-	BufferHandle GetBufferHandle(size_t index);
+	BufferHandle GetBufferHandle(const ResourceIndex& index);
+	unsigned char* GetMappedPtr();
 
 	D3D12_RESOURCE_STATES GetCurrentState();
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,

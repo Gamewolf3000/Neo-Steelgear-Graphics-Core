@@ -43,7 +43,7 @@ private:
 
 public:
 	BufferAllocator() = default;
-	~BufferAllocator();
+	virtual ~BufferAllocator() = default;
 	BufferAllocator(const BufferAllocator& other) = delete;
 	BufferAllocator& operator=(const BufferAllocator& other) = delete;
 	BufferAllocator(BufferAllocator&& other) noexcept;
@@ -61,11 +61,12 @@ public:
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
+	unsigned char* GetMappedPtr();
 	BufferHandle GetHandle(size_t index);
 	size_t GetElementSize();
 	size_t GetElementAlignment();
 	D3D12_RESOURCE_STATES GetCurrentState();
 
 	void UpdateMappedBuffer(size_t index, void* data); // Map/Unmap method
-	size_t DefragResources(ID3D12GraphicsCommandList* list);
+	//size_t DefragResources(ID3D12GraphicsCommandList* list);
 };

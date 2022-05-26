@@ -51,7 +51,7 @@ protected:
 
 public:
 	FrameResourceComponent() = default;
-
+	virtual ~FrameResourceComponent() = default;
 	FrameResourceComponent(const FrameResourceComponent& other) = delete;
 	FrameResourceComponent& operator=(const FrameResourceComponent& other) = delete;
 	FrameResourceComponent(FrameResourceComponent&& other) noexcept;
@@ -123,11 +123,15 @@ FrameResourceComponent<Component, Frames, CreationOperation>::RemoveComponent(
 	ResourceIndex indexToRemove)
 {
 	resourceComponents[this->activeFrame].RemoveComponent(indexToRemove);
-	StoredLifetimeOperation toStore;
-	toStore.type = LifetimeOperationType::REMOVAL;
-	toStore.framesLeft = Frames - 1;
-	toStore.removal.indexToRemove = indexToRemove;
-	storedLifetimeOperations.push_back(toStore);
+
+	if (Frames != 1)
+	{
+		StoredLifetimeOperation toStore;
+		toStore.type = LifetimeOperationType::REMOVAL;
+		toStore.framesLeft = Frames - 1;
+		toStore.removal.indexToRemove = indexToRemove;
+		storedLifetimeOperations.push_back(toStore);
+	}
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>

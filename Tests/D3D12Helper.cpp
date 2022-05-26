@@ -203,6 +203,103 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc)
 	return toReturn;
 }
 
+void CheckTextureData(ID3D12Resource* readbackBuffer,
+	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints,
+	std::vector<UINT> rows, std::vector<UINT64> rowSizes, unsigned char* data)
+{
+	unsigned char* mapped = nullptr;
+	HRESULT hr = readbackBuffer->Map(0, nullptr,
+		reinterpret_cast<void**>(&mapped));
+
+	unsigned char* currentData = data;
+
+	for (unsigned int subresource = 0; subresource < footprints.size(); ++subresource)
+	{
+		unsigned char* currentMapped = mapped + footprints[subresource].Offset;
+		for (unsigned int row = 0; row < rows[subresource]; ++row)
+		{
+			ASSERT_EQ(memcmp(currentMapped, currentData, rowSizes[subresource]), 0);
+			currentMapped += footprints[subresource].Footprint.RowPitch;
+			currentData += rowSizes[subresource];
+		}
+	}
+}
+
+
+std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
+CreateDescriptorAllocationInfo(size_t maxNrOfTextures,
+	const AllowedViews& allowedViews)
+{
+	std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
+		toReturn;
+
+	if (allowedViews.srv)
+	{
+		Texture2DViewDesc texture2DSRVDesc(ViewType::SRV);
+		DescriptorAllocationInfo<Texture2DViewDesc> srvInfo(
+			ViewType::SRV, texture2DSRVDesc, maxNrOfTextures);
+		toReturn.push_back(srvInfo);
+	}
+
+	if (allowedViews.uav)
+	{
+		Texture2DViewDesc texture2DUAVDesc(ViewType::UAV);
+		DescriptorAllocationInfo<Texture2DViewDesc> uavInfo(
+			ViewType::UAV, texture2DUAVDesc, maxNrOfTextures);
+		toReturn.push_back(uavInfo);
+	}
+
+	if (allowedViews.rtv)
+	{
+		Texture2DViewDesc texture2DRTVDesc(ViewType::RTV);
+		DescriptorAllocationInfo<Texture2DViewDesc> rtvInfo(
+			ViewType::RTV, texture2DRTVDesc, maxNrOfTextures);
+		toReturn.push_back(rtvInfo);
+	}
+
+	if (allowedViews.dsv)
+	{
+		Texture2DViewDesc texture2DDSVDesc(ViewType::DSV);
+		DescriptorAllocationInfo<Texture2DViewDesc> dsvInfo(
+			ViewType::DSV, texture2DDSVDesc, maxNrOfTextures);
+		toReturn.push_back(dsvInfo);
+	}
+
+	return toReturn;
+}
+
+AllowedViews ReverseDescriptorAllocationInfo(
+	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>&
+	descriptorAllocationInfo)
+{
+	AllowedViews toReturn;
+	toReturn.srv = false;
+
+	for (auto& descriptorInfo : descriptorAllocationInfo)
+	{
+		switch (descriptorInfo.viewType)
+		{
+		case ViewType::SRV:
+			toReturn.srv = true;
+			break;
+		case ViewType::UAV:
+			toReturn.uav = true;
+			break;
+		case ViewType::RTV:
+			toReturn.rtv = true;
+			break;
+		case ViewType::DSV:
+			toReturn.dsv = true;
+			break;
+		default:
+			throw "Illegal view type for texture detected";
+			break;
+		}
+	}
+
+	return toReturn;
+}
+
 ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device,
 	D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, UINT nrOfDescriptors,
 	bool shaderVisible)

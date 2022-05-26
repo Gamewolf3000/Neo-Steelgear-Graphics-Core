@@ -6,6 +6,7 @@
 #include <dxgi1_6.h>
 
 #include "../Neo Steelgear Graphics Core/ResourceAllocator.h"
+#include "../Neo Steelgear Graphics Core/Texture2DComponent.h"
 
 struct SimpleCommandStructure
 {
@@ -44,6 +45,18 @@ ID3D12Resource* CreateTexture2D(ID3D12Device* device, bool readback,
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
 ID3D12Resource* CreateTexture2D(ID3D12Device* device, D3D12_RESOURCE_DESC& desc);
+
+void CheckTextureData(ID3D12Resource* readbackBuffer,
+	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints,
+	std::vector<UINT> rows, std::vector<UINT64> rowSizes, unsigned char* data);
+
+std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
+CreateDescriptorAllocationInfo(size_t maxNrOfTextures, 
+	const AllowedViews& allowedViews);
+
+AllowedViews ReverseDescriptorAllocationInfo(
+	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>&
+	descriptorAllocationInfo);
 
 ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, UINT nrOfDescriptors, bool shaderVisible);
 
