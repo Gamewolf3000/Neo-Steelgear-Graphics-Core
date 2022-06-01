@@ -13,8 +13,6 @@ TEST(FrameTexture2DComponentTest, DefaultInitialisable)
 	FrameTexture2DComponent<1> frameTexture2DComponent1;
 	FrameTexture2DComponent<2> frameTexture2DComponent2;
 	FrameTexture2DComponent<3> frameTexture2DComponent3;
-	FrameTexture2DComponent<4> frameTexture2DComponent4;
-	FrameTexture2DComponent<5> frameTexture2DComponent5;
 }
 
 void InitializationHelper(std::function<void(ID3D12Device*, UpdateType,
@@ -28,17 +26,13 @@ void InitializationHelper(std::function<void(ID3D12Device*, UpdateType,
 	std::array<UpdateType, 3> updateTypes = { UpdateType::NONE,
 	UpdateType::INITIALISE_ONLY, UpdateType::COPY_UPDATE };
 
-	std::array<size_t, 3> heapSizes = { 10000000, 100000000, 1000000000 };
+	std::array<size_t, 2> heapSizes = { 100000000, 1000000000 };
 
 	std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
-		{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
-		{DXGI_FORMAT_R32G32B32_UINT, 12} };
+		{DXGI_FORMAT_R32G32B32A32_FLOAT, 16} };
 
 	std::vector<AllowedViews> ViewCombinations = { 
-		{true, false, false, false}, {false, true, false, false},
-		{true, true, false, false}, {false, false, true, false},
-		{true, false, true, false}, {false, true, true, false},
-		{true, true, true, false}, {false, false, false, true} };
+		{true, false, false, false}, {true, true, true, false}};
 
 	for (auto& heapSize : heapSizes)
 	{
@@ -95,7 +89,6 @@ TEST(FrameTexture2DComponentTest, RuntimeInitialisable)
 	InitializationHelper(RuntimeInitialize<1>);
 	InitializationHelper(RuntimeInitialize<2>);
 	InitializationHelper(RuntimeInitialize<3>);
-	InitializationHelper(RuntimeInitialize<4>);	
 }
 
 template<FrameType frames>
@@ -103,8 +96,8 @@ void CreateTextures(ID3D12Device* device, UpdateType updateType,
 	const TextureComponentInfo& componentInfo,
 	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>& descriptorAllocationInfo)
 {
-	std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
-	std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
+	std::array<UINT, 4> dimensions = { 1, 2, 499, 1024 };
+	std::array<UINT16, 3> arraySizes = { 1, 2, 5 };
 	std::array<UINT16, 2> mipLevels = { 1, 0 };
 
 	for (auto width : dimensions)
@@ -157,7 +150,6 @@ TEST(FrameTexture2DComponentTest, CreatesTexturesCorrectly)
 	InitializationHelper(CreateTextures<1>);
 	InitializationHelper(CreateTextures<2>);
 	InitializationHelper(CreateTextures<3>);
-	InitializationHelper(CreateTextures<4>);
 }
 
 template<FrameType frames>
@@ -165,8 +157,8 @@ void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 	const TextureComponentInfo& componentInfo,
 	const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>& descriptorAllocationInfo)
 {
-	std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
-	std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
+	std::array<UINT, 4> dimensions = { 1, 2, 499, 1024 };
+	std::array<UINT16, 3> arraySizes = { 1, 2, 5 };
 	std::array<UINT16, 2> mipLevels = { 1, 0 };
 	std::vector<std::pair<ResourceIndex, TextureAllocationInfo>> allocations;
 
@@ -233,7 +225,6 @@ TEST(FrameTexture2DComponentTest, RemovesTexturesCorrectly)
 	InitializationHelper(RemoveTextures<1>);
 	InitializationHelper(RemoveTextures<2>);
 	InitializationHelper(RemoveTextures<3>);
-	InitializationHelper(RemoveTextures<4>);
 }
 
 template<FrameType frames>
@@ -244,12 +235,10 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 	if (updateType == UpdateType::NONE)
 		return;
 
-	std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
-	std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
+	std::array<UINT, 4> dimensions = { 1, 2, 499, 1024 };
+	std::array<UINT16, 3> arraySizes = { 1, 2, 5 };
 	std::array<UINT16, 2> mipLevels = { 1, 0 };
-	std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
-		{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
-		{DXGI_FORMAT_R32G32B32_UINT, 12} };
+	std::vector<std::pair<ResourceIndex, TextureAllocationInfo>> allocations;
 
 	size_t currentFenceValue = 0;
 	ID3D12Fence* fence = CreateFence(device, currentFenceValue,
@@ -270,81 +259,112 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 
 	unsigned char* data = new unsigned char[heapSize];
 
-	for (auto textureInfo : textureInfos)
+	for (auto width : dimensions)
 	{
 		size_t currentlyUsedMemory = 0;
 		size_t currentDataOffset = 0;
 		size_t totalAdded = 0;
-		TextureComponentInfo componentInfo(textureInfo.format,
-			textureInfo.texelSize, ResourceHeapInfo(heapSize));
 		FrameTexture2DComponent<frames> component;
 		component.Initialize(device, updateType, componentInfo, {}); // Views should not affect this
 
-		for (auto width : dimensions)
+		for (auto height : dimensions)
 		{
-			for (auto height : dimensions)
+			for (auto mips : mipLevels)
 			{
-				for (auto mips : mipLevels)
+				for (auto arraySize : arraySizes)
 				{
-					for (auto arraySize : arraySizes)
+					D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
+						height, mips, arraySize, componentInfo.textureInfo.format,
+						{ false, false, false, false });
+					D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
+						device->GetResourceAllocationInfo(0, 1, &desc);
+
+					size_t alignedStart = ((currentlyUsedMemory +
+						(allocationInfo.Alignment - 1)) &
+						~(allocationInfo.Alignment - 1));
+					size_t alignedEnd = alignedStart +
+						allocationInfo.SizeInBytes;
+
+					if (alignedEnd > heapSize)
+						break;
+
+					currentlyUsedMemory = alignedEnd;
+
+					TextureAllocationInfo textureAllocationInfo(width,
+						height, arraySize, mips);
+					auto index = component.CreateTexture(textureAllocationInfo);
+					ASSERT_NE(index, ResourceIndex(-1));
+					allocations.push_back(std::make_pair(index,
+						textureAllocationInfo));
+					auto handle = component.GetTextureHandle(index);
+
+					size_t textureByteSize = 0;
+					unsigned int subresources =
+						handle.resource->GetDesc().MipLevels * arraySize;
+					unsigned int internalOffset = 0;
+
+					for (unsigned int subresource = 0;
+						subresource < subresources; ++subresource)
 					{
-						D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
-							height, mips, arraySize, textureInfo.format,
-							{ false, false, false, false });
-						D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
-							device->GetResourceAllocationInfo(0, 1, &desc);
+						D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
+						UINT nrOfRows = 0;
+						UINT64 rowSize = 0, subresourceSize = 0;
+						device->GetCopyableFootprints(&desc, subresource,
+							1, 0, &placedFootprint, &nrOfRows,
+							&rowSize, &subresourceSize);
+						textureByteSize += nrOfRows * rowSize;
 
-						size_t alignedStart = ((currentlyUsedMemory +
-							(allocationInfo.Alignment - 1)) &
-							~(allocationInfo.Alignment - 1));
-						size_t alignedEnd = alignedStart +
-							allocationInfo.SizeInBytes;
-
-						if (alignedEnd > heapSize)
-							break;
-
-						currentlyUsedMemory = alignedEnd;
-
-						TextureAllocationInfo textureAllocationInfo(width,
-							height, arraySize, mips);
-						auto index = component.CreateTexture(textureAllocationInfo);
-						ASSERT_NE(index, ResourceIndex(-1));
-						auto handle = component.GetTextureHandle(index);
-
-						size_t textureByteSize = 0;
-						unsigned int subresources =
-							handle.resource->GetDesc().MipLevels * arraySize;
-						unsigned int internalOffset = 0;
-
-						for (unsigned int subresource = 0;
-							subresource < subresources; ++subresource)
-						{
-							D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
-							UINT nrOfRows = 0;
-							UINT64 rowSize = 0, subresourceSize = 0;
-							device->GetCopyableFootprints(&desc, subresource,
-								1, 0, &placedFootprint, &nrOfRows,
-								&rowSize, &subresourceSize);
-							textureByteSize += nrOfRows * rowSize;
-
-							unsigned char* currentData = data + currentDataOffset
-								+ internalOffset;
-							memset(currentData,
-								static_cast<unsigned char>(subresource + 1),
-								nrOfRows * rowSize);
-							component.SetUpdateData(index, currentData,
-								subresource);
-							internalOffset += nrOfRows * rowSize;
-						}
-
-						currentDataOffset += textureByteSize;
-						++totalAdded;
+						unsigned char* currentData = data + currentDataOffset
+							+ internalOffset;
+						memset(currentData,
+							static_cast<unsigned char>(subresource + 1),
+							nrOfRows * rowSize);
+						component.SetUpdateData(index, currentData,
+							subresource);
+						internalOffset += nrOfRows * rowSize;
 					}
+
+					currentDataOffset += textureByteSize;
+					++totalAdded;
 				}
 			}
 		}
 
-		for (unsigned int currentFrame = 0; currentFrame < frames + 1; 
+		currentDataOffset = 0;
+		for (unsigned int i = 0; i < allocations.size() / 2; ++i)
+		{
+			component.RemoveComponent(allocations[i].first);
+			allocations[i].first = component.CreateTexture(allocations[i].second);
+			ASSERT_NE(allocations[i].first, ResourceIndex(-1));
+			auto handle = component.GetTextureHandle(allocations[i].first);
+			auto desc = handle.resource->GetDesc();
+			size_t textureByteSize = 0;
+			unsigned int subresources = desc.MipLevels * desc.DepthOrArraySize;
+			unsigned int internalOffset = 0;
+
+			for (unsigned int subresource = 0; subresource < subresources; ++subresource)
+			{
+				D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
+				UINT nrOfRows = 0;
+				UINT64 rowSize = 0, subresourceSize = 0;
+				device->GetCopyableFootprints(&desc, subresource,
+					1, 0, &placedFootprint, &nrOfRows,
+					&rowSize, &subresourceSize);
+				textureByteSize += nrOfRows * rowSize;
+
+				unsigned char* currentData = data + currentDataOffset
+					+ internalOffset;
+				memset(currentData,
+					static_cast<unsigned char>(subresource + 1),
+					nrOfRows * rowSize);
+				component.SetUpdateData(allocations[i].first, currentData, subresource);
+				internalOffset += nrOfRows * rowSize;
+			}
+
+			currentDataOffset += textureByteSize;
+		}
+
+		for (unsigned int currentFrame = 0; currentFrame < frames + 1;
 			++currentFrame)
 		{
 			ID3D12Resource* readbackBuffer = CreateBuffer(device, heapSize, true);
@@ -365,7 +385,7 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 			FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
 			size_t totalChecked = 0;
 
-			for (size_t i = 0; i < totalAdded; ++i)
+			for (size_t i = 0; i < allocations.size(); ++i)
 			{
 				if (FAILED(commandStructure.allocator->Reset()))
 					throw "Cannot proceed with tests as command allocator cannot be reset";
@@ -373,7 +393,7 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 				if (FAILED(commandStructure.list->Reset(commandStructure.allocator, nullptr)))
 					throw "Cannot proceed with tests as command list cannot be reset";
 
-				ResourceIndex index(i);
+				ResourceIndex index(allocations[i].first);
 				auto handle = component.GetTextureHandle(index);
 				auto desc = handle.resource->GetDesc();
 				unsigned int subresources = desc.MipLevels * desc.DepthOrArraySize;
@@ -416,6 +436,7 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 			uploader.RestoreUsedMemory();
 			readbackBuffer->Release();
 			component.SwapFrame();
+			allocations.clear();
 		}
 	}
 
@@ -428,5 +449,4 @@ TEST(FrameTexture2DComponentTest, UpdatesTexturesCorrectly)
 	InitializationHelper(UpdateTextures<1>);
 	InitializationHelper(UpdateTextures<2>);
 	InitializationHelper(UpdateTextures<3>);
-	InitializationHelper(UpdateTextures<4>);
 }

@@ -86,8 +86,8 @@ void Texture2DComponentData::AddComponent(ResourceIndex resourceIndex,
 	if (type != UpdateType::INITIALISE_ONLY && resourceIndex < headers.size())
 	{
 		std::int64_t sizeDifference = dataSize - headers[resourceIndex].dataSize;
-		headers[resourceIndex].dataSize = dataSize;
 		UpdateExistingHeaders(resourceIndex, sizeDifference);
+		headers[resourceIndex].dataSize = dataSize;
 
 		std::int16_t entryDifference = static_cast<std::uint16_t>(
 			nrOfSubresources - headers[resourceIndex].specifics.nrOfSubresources);

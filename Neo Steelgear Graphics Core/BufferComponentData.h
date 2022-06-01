@@ -28,7 +28,7 @@ public:
 	BufferComponentData(BufferComponentData&& other) = default;
 	BufferComponentData& operator=(BufferComponentData&& other) = default;
 
-	void AddComponent(ResourceIndex resourceIndex, unsigned int dataSize);
+	//void AddComponent(ResourceIndex resourceIndex, unsigned int dataSize);
 	void AddComponent(ResourceIndex resourceIndex, size_t startOffset,
 		unsigned int dataSize, void* initialData = nullptr);
 	void RemoveComponent(ResourceIndex resourceIndex) override;

@@ -91,40 +91,40 @@ void BufferComponentData::HandleMapUpdate(BufferComponent& componentToUpdate)
 	}
 }
 
-void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
-	unsigned int dataSize)
-{
-	if (type == UpdateType::NONE)
-		return;
-
-	if (type != UpdateType::INITIALISE_ONLY && resourceIndex < headers.size())
-	{
-		std::int64_t difference = dataSize - headers[resourceIndex].dataSize;
-		headers[resourceIndex].dataSize = dataSize;
-		UpdateExistingHeaders(resourceIndex, difference);
-	}
-	else
-	{
-		DataHeader toAdd;
-		toAdd.specifics.framesLeft = 0;
-		toAdd.startOffset = headers.size() == 0 ? 0 :
-			headers.back().startOffset + headers.back().dataSize;
-		toAdd.dataSize = dataSize;
-		toAdd.resourceIndex = resourceIndex;
-		headers.push_back(toAdd);
-
-		if (type == UpdateType::INITIALISE_ONLY)
-		{
-			if (usedDataSize + dataSize > data.capacity())
-			{
-				data.reserve(usedDataSize + dataSize);
-				data.resize(usedDataSize + dataSize); // Resize so new data fits
-			}
-
-			usedDataSize += dataSize;
-		}
-	}
-}
+//void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
+//	unsigned int dataSize)
+//{
+//	if (type == UpdateType::NONE)
+//		return;
+//
+//	if (type != UpdateType::INITIALISE_ONLY && resourceIndex < headers.size())
+//	{
+//		std::int64_t difference = dataSize - headers[resourceIndex].dataSize;
+//		headers[resourceIndex].dataSize = dataSize;
+//		UpdateExistingHeaders(resourceIndex, difference);
+//	}
+//	else
+//	{
+//		DataHeader toAdd;
+//		toAdd.specifics.framesLeft = 0;
+//		toAdd.startOffset = headers.size() == 0 ? 0 :
+//			headers.back().startOffset + headers.back().dataSize;
+//		toAdd.dataSize = dataSize;
+//		toAdd.resourceIndex = resourceIndex;
+//		headers.push_back(toAdd);
+//
+//		if (type == UpdateType::INITIALISE_ONLY)
+//		{
+//			if (usedDataSize + dataSize > data.capacity())
+//			{
+//				data.reserve(usedDataSize + dataSize);
+//				data.resize(usedDataSize + dataSize); // Resize so new data fits
+//			}
+//
+//			usedDataSize += dataSize;
+//		}
+//	}
+//}
 
 void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
 	size_t startOffset, unsigned int dataSize, void* initialData)
@@ -152,16 +152,13 @@ void BufferComponentData::AddComponent(ResourceIndex resourceIndex,
 		toAdd.resourceIndex = resourceIndex;
 		headers.push_back(toAdd);
 
-		if (type == UpdateType::INITIALISE_ONLY)
+		if (usedDataSize + dataSize > data.capacity())
 		{
-			if (usedDataSize + dataSize > data.capacity())
-			{
-				data.reserve(usedDataSize + dataSize);
-				data.resize(usedDataSize + dataSize); // Resize so new data fits
-			}
-
-			usedDataSize += dataSize;
+			data.reserve(usedDataSize + dataSize);
+			data.resize(usedDataSize + dataSize); // Resize so new data fits
 		}
+
+		usedDataSize += dataSize;
 	}
 
 	if (initialData != nullptr)
@@ -190,9 +187,7 @@ void BufferComponentData::RemoveComponent(ResourceIndex resourceIndex)
 			std::int64_t difference = headers[i].dataSize;
 			difference = -difference;
 			UpdateExistingHeaders(i, difference);
-			usedDataSize = difference >= 0 ? 
-				usedDataSize + static_cast<size_t>(difference) :
-				usedDataSize - static_cast<size_t>(-difference);
+			usedDataSize -= static_cast<size_t>(-difference);
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();
