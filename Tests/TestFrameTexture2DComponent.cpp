@@ -28,7 +28,8 @@ void InitializationHelper(std::function<void(ID3D12Device*, UpdateType,
 
 	std::array<size_t, 2> heapSizes = { 100000000, 1000000000 };
 
-	std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
+	std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = {
+		{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, 
 		{DXGI_FORMAT_R32G32B32A32_FLOAT, 16} };
 
 	std::vector<AllowedViews> ViewCombinations = { 
@@ -42,27 +43,13 @@ void InitializationHelper(std::function<void(ID3D12Device*, UpdateType,
 			{
 				for (auto& updateType : updateTypes)
 				{
-					bool unacceptableCombination = false;
-					unacceptableCombination |=
-						textureInfo.format != DXGI_FORMAT_D32_FLOAT &&
-						allowedViews.dsv;
-					unacceptableCombination |=
-						textureInfo.format == DXGI_FORMAT_D32_FLOAT &&
-						!allowedViews.dsv;
-					unacceptableCombination |=
-						textureInfo.format == DXGI_FORMAT_R32G32B32_UINT &&
-						(allowedViews.rtv || allowedViews.uav);
-
-					if (unacceptableCombination)
-						continue;
-
 					size_t maxNrOfTextures = heapSize / 10000;
 					std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
 						descriptorAllocationInfo =
 						CreateDescriptorAllocationInfo(maxNrOfTextures, allowedViews);
 
-					TextureComponentInfo componentInfo(textureInfo.format,
-						textureInfo.texelSize, ResourceHeapInfo(heapSize));
+					TextureComponentInfo componentInfo(textureInfo.first,
+						textureInfo.second, ResourceHeapInfo(heapSize));
 
 					func(device, updateType, componentInfo,
 						descriptorAllocationInfo);
@@ -117,7 +104,7 @@ void CreateTextures(ID3D12Device* device, UpdateType updateType,
 					AllowedViews allowedViews =
 						ReverseDescriptorAllocationInfo(descriptorAllocationInfo);
 					D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-						mips, arraySize, componentInfo.textureInfo.format, allowedViews);
+						mips, arraySize, componentInfo.format, allowedViews);
 					D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 						device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -131,10 +118,8 @@ void CreateTextures(ID3D12Device* device, UpdateType updateType,
 						break;
 
 					currentlyUsedMemory = alignedEnd;
-					TextureAllocationInfo textureAllocationInfo(width, height,
-						arraySize, mips);
-					ResourceIndex index = textureComponent.CreateTexture(
-						textureAllocationInfo);
+					ResourceIndex index = textureComponent.CreateTexture(width,
+						height, arraySize, mips);
 					ASSERT_EQ(index, currentExpectedIndex++);
 				}
 			}
@@ -152,6 +137,14 @@ TEST(FrameTexture2DComponentTest, CreatesTexturesCorrectly)
 	InitializationHelper(CreateTextures<3>);
 }
 
+struct TextureAllocationHelpStruct
+{
+	UINT width;
+	UINT height;
+	UINT16 arraySize;
+	UINT16 mips;
+};
+
 template<FrameType frames>
 void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 	const TextureComponentInfo& componentInfo,
@@ -160,7 +153,7 @@ void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 	std::array<UINT, 4> dimensions = { 1, 2, 499, 1024 };
 	std::array<UINT16, 3> arraySizes = { 1, 2, 5 };
 	std::array<UINT16, 2> mipLevels = { 1, 0 };
-	std::vector<std::pair<ResourceIndex, TextureAllocationInfo>> allocations;
+	std::vector<std::pair<ResourceIndex, TextureAllocationHelpStruct>> allocations;
 
 	for (auto width : dimensions)
 	{
@@ -179,7 +172,7 @@ void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 					AllowedViews allowedViews =
 						ReverseDescriptorAllocationInfo(descriptorAllocationInfo);
 					D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-						mips, arraySize, componentInfo.textureInfo.format, allowedViews);
+						mips, arraySize, componentInfo.format, allowedViews);
 					D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 						device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -193,13 +186,12 @@ void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 						break;
 
 					currentlyUsedMemory = alignedEnd;
-					TextureAllocationInfo textureAllocationInfo(width, height,
-						arraySize, mips);
-					ResourceIndex index = textureComponent.CreateTexture(
-						textureAllocationInfo);
+					ResourceIndex index = textureComponent.CreateTexture(width, 
+						height, arraySize, mips);
 					ASSERT_EQ(index, currentExpectedIndex++);
-					allocations.push_back(std::make_pair(index, 
-						textureAllocationInfo));
+					TextureAllocationHelpStruct allocationHelper = { width, height,
+						arraySize, mips };
+					allocations.push_back(std::make_pair(index, allocationHelper));
 				}
 			}
 		}
@@ -209,7 +201,9 @@ void RemoveTextures(ID3D12Device* device, UpdateType updateType,
 
 		for (auto& allocation : allocations)
 		{
-			ResourceIndex index = textureComponent.CreateTexture(allocation.second);
+			TextureAllocationHelpStruct allocationHelper = allocation.second;
+			ResourceIndex index = textureComponent.CreateTexture(allocationHelper.width,
+				allocationHelper.height, allocationHelper.arraySize, allocationHelper.mips);
 			ASSERT_LE(index, ResourceIndex(allocations.size()));
 		}
 
@@ -238,7 +232,7 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 	std::array<UINT, 4> dimensions = { 1, 2, 499, 1024 };
 	std::array<UINT16, 3> arraySizes = { 1, 2, 5 };
 	std::array<UINT16, 2> mipLevels = { 1, 0 };
-	std::vector<std::pair<ResourceIndex, TextureAllocationInfo>> allocations;
+	std::vector<std::pair<ResourceIndex, TextureAllocationHelpStruct>> allocations;
 
 	size_t currentFenceValue = 0;
 	ID3D12Fence* fence = CreateFence(device, currentFenceValue,
@@ -274,7 +268,7 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 				for (auto arraySize : arraySizes)
 				{
 					D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
-						height, mips, arraySize, componentInfo.textureInfo.format,
+						height, mips, arraySize, componentInfo.format,
 						{ false, false, false, false });
 					D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 						device->GetResourceAllocationInfo(0, 1, &desc);
@@ -290,12 +284,12 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 
 					currentlyUsedMemory = alignedEnd;
 
-					TextureAllocationInfo textureAllocationInfo(width,
+					auto index = component.CreateTexture(width,
 						height, arraySize, mips);
-					auto index = component.CreateTexture(textureAllocationInfo);
 					ASSERT_NE(index, ResourceIndex(-1));
-					allocations.push_back(std::make_pair(index,
-						textureAllocationInfo));
+					TextureAllocationHelpStruct allocationHelper = { width, height,
+						arraySize, mips };
+					allocations.push_back(std::make_pair(index, allocationHelper));
 					auto handle = component.GetTextureHandle(index);
 
 					size_t textureByteSize = 0;
@@ -334,7 +328,9 @@ void UpdateTextures(ID3D12Device* device, UpdateType updateType,
 		for (unsigned int i = 0; i < allocations.size() / 2; ++i)
 		{
 			component.RemoveComponent(allocations[i].first);
-			allocations[i].first = component.CreateTexture(allocations[i].second);
+			TextureAllocationHelpStruct allocationHelper = allocations[i].second;
+			allocations[i].first = component.CreateTexture(allocationHelper.width,
+				allocationHelper.height, allocationHelper.arraySize, allocationHelper.mips);
 			ASSERT_NE(allocations[i].first, ResourceIndex(-1));
 			auto handle = component.GetTextureHandle(allocations[i].first);
 			auto desc = handle.resource->GetDesc();

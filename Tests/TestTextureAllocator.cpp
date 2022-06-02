@@ -13,7 +13,7 @@ TEST(TextureAllocatorTest, DefaultInitialisable)
 }
 
 void InitializationHelper(std::function<void(ID3D12Device*, size_t,
-	const TextureInfo&, const AllowedViews&)> func)
+	const std::pair<DXGI_FORMAT, std::uint8_t>&, const AllowedViews&)> func)
 {
 	ID3D12Device* device = CreateDevice();
 	if (device == nullptr)
@@ -21,9 +21,10 @@ void InitializationHelper(std::function<void(ID3D12Device*, size_t,
 
 	std::array<size_t, 4> heapSizes = { 1000000, 10000000, 100000000, 1000000000 };
 
-	std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4}, 
-		{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, 
-		{DXGI_FORMAT_R32G32_TYPELESS, 8}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
+	std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = { 
+		{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+		{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32_TYPELESS, 8},
+		{DXGI_FORMAT_R32G32B32_UINT, 12} };
 
 	std::vector<AllowedViews> ViewCombinations = { {false, false, false, false},
 		{true, false, false, false}, {false, true, false, false},
@@ -40,13 +41,13 @@ void InitializationHelper(std::function<void(ID3D12Device*, size_t,
 			{
 				bool unacceptableCombination = false;
 				unacceptableCombination |=
-					textureInfo.format != DXGI_FORMAT_D32_FLOAT &&
+					textureInfo.first != DXGI_FORMAT_D32_FLOAT &&
 					allowedViews.dsv;
 				unacceptableCombination |=
-					textureInfo.format == DXGI_FORMAT_D32_FLOAT &&
+					textureInfo.first == DXGI_FORMAT_D32_FLOAT &&
 					!allowedViews.dsv;
 				unacceptableCombination |=
-					textureInfo.format == DXGI_FORMAT_R32G32B32_UINT &&
+					textureInfo.first == DXGI_FORMAT_R32G32B32_UINT &&
 					(allowedViews.rtv || allowedViews.uav);
 
 				if (unacceptableCombination)
@@ -63,11 +64,12 @@ void InitializationHelper(std::function<void(ID3D12Device*, size_t,
 TEST(TextureAllocatorTest, RuntimeInitialisable)
 {
 	auto lambda = [](ID3D12Device* device, size_t heapSize,
-		const TextureInfo& textureInfo, const AllowedViews& allowedViews)
+		const std::pair<DXGI_FORMAT, std::uint8_t>& textureInfo,
+		const AllowedViews& allowedViews)
 	{
+		(void)textureInfo;
 		TextureAllocator textureAllocator;
-		textureAllocator.Initialize(textureInfo, device, allowedViews,
-			heapSize);
+		textureAllocator.Initialize(device, allowedViews, heapSize);
 	};
 
 	InitializationHelper(lambda);
@@ -76,7 +78,8 @@ TEST(TextureAllocatorTest, RuntimeInitialisable)
 TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 {
 	auto lambda = [](ID3D12Device* device, size_t heapSize,
-		const TextureInfo& textureInfo, const AllowedViews& allowedViews)
+		const std::pair<DXGI_FORMAT, std::uint8_t>& textureInfo,
+		const AllowedViews& allowedViews)
 	{
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
@@ -87,8 +90,7 @@ TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 			size_t currentlyUsedMemory = 0;
 			size_t currentExpectedIndex = 0;
 			TextureAllocator textureAllocator;
-			textureAllocator.Initialize(textureInfo, device, 
-				allowedViews, heapSize);
+			textureAllocator.Initialize(device, allowedViews, heapSize);
 
 			for (auto height : dimensions)
 			{
@@ -97,7 +99,7 @@ TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 					for (auto arraySize : arraySizes)
 					{
 						D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-							mips, arraySize, textureInfo.format, allowedViews);
+							mips, arraySize, textureInfo.first, allowedViews);
 						D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 							device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -111,8 +113,8 @@ TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 							break;
 
 						currentlyUsedMemory = alignedEnd;
-						TextureAllocationInfo textureAllocationInfo(width, height,
-							arraySize, mips);
+						TextureAllocationInfo textureAllocationInfo(textureInfo.first, 
+							textureInfo.second, width, height, arraySize, mips);
 						size_t index = textureAllocator.AllocateTexture(
 							textureAllocationInfo);
 						ASSERT_EQ(index, currentExpectedIndex++);
@@ -129,7 +131,8 @@ TEST(TextureAllocatorTest, CorrectlyAllocatesTextures)
 TEST(TextureAllocatorTest, CorrectlyDeallocatesTextures)
 {
 	auto lambda = [](ID3D12Device* device, size_t heapSize,
-		const TextureInfo& textureInfo, const AllowedViews& allowedViews)
+		const std::pair<DXGI_FORMAT, std::uint8_t>& textureInfo,
+		const AllowedViews& allowedViews)
 	{
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
@@ -140,8 +143,7 @@ TEST(TextureAllocatorTest, CorrectlyDeallocatesTextures)
 			size_t currentlyUsedMemory = 0;
 			std::vector<std::pair<size_t, TextureAllocationInfo>> allocations;
 			TextureAllocator textureAllocator;
-			textureAllocator.Initialize(textureInfo, device,
-				allowedViews, heapSize);
+			textureAllocator.Initialize(device, allowedViews, heapSize);
 
 			for (auto height : dimensions)
 			{
@@ -150,7 +152,7 @@ TEST(TextureAllocatorTest, CorrectlyDeallocatesTextures)
 					for (auto arraySize : arraySizes)
 					{
 						D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-							mips, arraySize, textureInfo.format, allowedViews);
+							mips, arraySize, textureInfo.first, allowedViews);
 						D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 							device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -164,8 +166,8 @@ TEST(TextureAllocatorTest, CorrectlyDeallocatesTextures)
 							break;
 
 						currentlyUsedMemory = alignedEnd;
-						TextureAllocationInfo textureAllocationInfo(width, height,
-							arraySize, mips);
+						TextureAllocationInfo textureAllocationInfo(textureInfo.first,
+							textureInfo.second, width, height, arraySize, mips);
 						size_t index = textureAllocator.AllocateTexture(
 							textureAllocationInfo);
 						ASSERT_NE(index, size_t(-1));

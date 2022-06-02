@@ -19,6 +19,8 @@ struct TextureDimensions
 
 struct TextureAllocationInfo
 {
+	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+	std::uint8_t texelSize = 0;
 	TextureDimensions dimensions;
 	D3D12_RESOURCE_DIMENSION textureType;
 	size_t mipLevels;
@@ -26,23 +28,19 @@ struct TextureAllocationInfo
 	std::uint8_t sampleQuality;
 	std::optional<D3D12_CLEAR_VALUE> clearValue;
 
-	//TextureAllocationInfo(size_t width, size_t arraySize = 1, size_t mipLevels = 1,
-	//	std::uint8_t sampleCount = 1, std::uint8_t sampleQuality = 0,
-	//	D3D12_CLEAR_VALUE* clearValue = nullptr);
-
-	TextureAllocationInfo(size_t width, size_t height, size_t arraySize = 1,
+	TextureAllocationInfo(DXGI_FORMAT format, std::uint8_t texelSize,
+		size_t width, size_t height, size_t arraySize = 1,
 		size_t mipLevels = 1, std::uint8_t sampleCount = 1,
-		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr);
-
-	//TextureAllocationInfo(size_t width, size_t height, size_t depth,
-	//	size_t mipLevels = 1, std::uint8_t sampleCount = 1,
-	//	std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr);
-};
-
-struct TextureInfo
-{
-	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-	std::uint8_t texelSize = 0;
+		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr) :
+		format(format), texelSize(texelSize), dimensions({ width, height, arraySize }),
+		textureType(D3D12_RESOURCE_DIMENSION_TEXTURE2D), mipLevels(mipLevels),
+		sampleCount(sampleCount), sampleQuality(sampleQuality)
+	{
+		if (clearValue == nullptr)
+			this->clearValue = std::nullopt;
+		else
+			this->clearValue = *clearValue;
+	}
 };
 
 struct TextureHandle
@@ -101,7 +99,6 @@ private:
 	};
 
 	ID3D12Device* device = nullptr;
-	TextureInfo textureInfo;
 	HeapHelper<TextureEntry> textures;
 
 	D3D12_RESOURCE_DESC CreateTextureDesc(const TextureAllocationInfo& info);
@@ -114,10 +111,10 @@ public:
 	TextureAllocator(TextureAllocator&& other) noexcept;
 	TextureAllocator& operator=(TextureAllocator&& other) noexcept;
 
-	void Initialize(const TextureInfo& textureInfoToUse, ID3D12Device* deviceToUse,
+	void Initialize(ID3D12Device* deviceToUse,
 		const AllowedViews& allowedViews, ID3D12Heap* heap,
 		size_t startOffset, size_t endOffset);
-	void Initialize(const TextureInfo& textureInfoToUse, ID3D12Device* deviceToUse,
+	void Initialize(ID3D12Device* deviceToUse,
 		const AllowedViews& allowedViews, size_t heapSize);
 
 	size_t AllocateTexture(const TextureAllocationInfo& info);
@@ -130,6 +127,4 @@ public:
 
 	TextureHandle GetHandle(size_t index);
 	D3D12_RESOURCE_STATES GetCurrentState(size_t index);
-	size_t GetTexelSize();
-	DXGI_FORMAT GetTextureFormat();
 };

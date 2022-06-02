@@ -11,7 +11,7 @@ D3D12_RESOURCE_DESC TextureAllocator::CreateTextureDesc(
 	toReturn.Height = static_cast<UINT>(info.dimensions.height);
 	toReturn.DepthOrArraySize = static_cast<UINT16>(info.dimensions.depthOrArraySize);
 	toReturn.MipLevels = static_cast<UINT16>(info.mipLevels);
-	toReturn.Format = textureInfo.format;
+	toReturn.Format = info.format;
 	toReturn.SampleDesc.Count = info.sampleCount;
 	toReturn.SampleDesc.Quality = info.sampleQuality;
 	toReturn.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -26,11 +26,10 @@ TextureAllocator::~TextureAllocator()
 }
 
 TextureAllocator::TextureAllocator(TextureAllocator&& other) noexcept : 
-	ResourceAllocator(std::move(other)), device(other.device), 
-	textureInfo(other.textureInfo), textures(std::move(other.textures))
+	ResourceAllocator(std::move(other)), device(other.device),
+	textures(std::move(other.textures))
 {
 	other.device = nullptr;
-	other.textureInfo = TextureInfo();
 }
 
 TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
@@ -40,21 +39,18 @@ TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
 		ResourceAllocator::operator=(std::move(other));
 		device = other.device;
 		other.device = nullptr;
-		textureInfo = other.textureInfo;
-		other.textureInfo = TextureInfo();
 		textures = std::move(other.textures);
 	}
 
 	return *this;
 }
 
-void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse, 
-	ID3D12Device* deviceToUse, const AllowedViews& allowedViews,
-	ID3D12Heap* heap, size_t startOffset, size_t endOffset)
+void TextureAllocator::Initialize(ID3D12Device* deviceToUse,
+	const AllowedViews& allowedViews, ID3D12Heap* heap,
+	size_t startOffset, size_t endOffset)
 {
 	ResourceAllocator::Initialize(allowedViews);
 	device = deviceToUse;
-	textureInfo = textureInfoToUse;
 	textures.Initialize(endOffset - startOffset);
 	heapData.heapOwned = false;
 	heapData.heap = heap;
@@ -62,13 +58,11 @@ void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse,
 	heapData.endOffset = endOffset;
 }
 
-void TextureAllocator::Initialize(const TextureInfo& textureInfoToUse,
-	ID3D12Device* deviceToUse, const AllowedViews& allowedViews,
-	size_t heapSize)
+void TextureAllocator::Initialize(ID3D12Device* deviceToUse,
+	const AllowedViews& allowedViews, size_t heapSize)
 {
 	ResourceAllocator::Initialize(allowedViews);
 	device = deviceToUse;
-	textureInfo = textureInfoToUse;
 	textures.Initialize(heapSize);
 	heapData.heapOwned = true;
 	D3D12_HEAP_FLAGS heapFlag = allowedViews.dsv || allowedViews.rtv ?
@@ -124,16 +118,6 @@ D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(size_t index)
 	return textures[index].currentState;
 }
 
-size_t TextureAllocator::GetTexelSize()
-{
-	return textureInfo.texelSize;
-}
-
-DXGI_FORMAT TextureAllocator::GetTextureFormat()
-{
-	return textureInfo.format;
-}
-
 D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(size_t index,
 	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
@@ -150,34 +134,3 @@ D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(size_t index,
 
 	return toReturn;
 }
-
-//TextureAllocationInfo::TextureAllocationInfo(size_t width, size_t arraySize, 
-//	size_t mipLevels, std::uint8_t sampleCount, std::uint8_t sampleQuality,
-//	D3D12_CLEAR_VALUE* clearValue) : dimensions({ width, 0, arraySize }),
-//	textureType(D3D12_RESOURCE_DIMENSION_TEXTURE1D), mipLevels(mipLevels),
-//	sampleCount(sampleCount), sampleQuality(sampleQuality), clearValue(clearValue)
-//{
-//	// Empty
-//}
-
-TextureAllocationInfo::TextureAllocationInfo(size_t width, size_t height, 
-	size_t arraySize, size_t mipLevels, std::uint8_t sampleCount,
-	std::uint8_t sampleQuality, D3D12_CLEAR_VALUE* clearValue) :
-	dimensions({ width, height, arraySize }),
-	textureType(D3D12_RESOURCE_DIMENSION_TEXTURE2D), mipLevels(mipLevels),
-	sampleCount(sampleCount), sampleQuality(sampleQuality)
-{
-	if (clearValue == nullptr)
-		this->clearValue = std::nullopt;
-	else
-		this->clearValue = *clearValue;
-}
-//
-//TextureAllocationInfo::TextureAllocationInfo(size_t width, size_t height, size_t depth,
-//	size_t mipLevels, std::uint8_t sampleCount, std::uint8_t sampleQuality,
-//	D3D12_CLEAR_VALUE* clearValue) : dimensions({ width, height, depth }),
-//	textureType(D3D12_RESOURCE_DIMENSION_TEXTURE3D), mipLevels(mipLevels),
-//	sampleCount(sampleCount), sampleQuality(sampleQuality), clearValue(clearValue)
-//{
-//	// Empty
-//}

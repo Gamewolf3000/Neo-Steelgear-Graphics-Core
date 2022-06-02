@@ -6,7 +6,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Texture2DComponent::CreateSRV(
 	D3D12_SHADER_RESOURCE_VIEW_DESC toReturn;
 
 	toReturn.Format = desc.viewFormat == DXGI_FORMAT_UNKNOWN ? 
-		textureAllocator.GetTextureFormat() : desc.viewFormat;
+		handle.resource->GetDesc().Format : desc.viewFormat;
 	toReturn.Shader4ComponentMapping = desc.componentMapping;
 
 	if (handle.dimensions.depthOrArraySize == 1)
@@ -39,7 +39,7 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC Texture2DComponent::CreateUAV(
 	D3D12_UNORDERED_ACCESS_VIEW_DESC toReturn;
 
 	toReturn.Format = desc.viewFormat == DXGI_FORMAT_UNKNOWN ?
-		textureAllocator.GetTextureFormat() : desc.viewFormat;
+		handle.resource->GetDesc().Format : desc.viewFormat;
 	
 	if (handle.dimensions.depthOrArraySize == 1)
 	{
@@ -67,7 +67,7 @@ D3D12_RENDER_TARGET_VIEW_DESC Texture2DComponent::CreateRTV(
 	D3D12_RENDER_TARGET_VIEW_DESC toReturn;
 
 	toReturn.Format = desc.viewFormat == DXGI_FORMAT_UNKNOWN ?
-		textureAllocator.GetTextureFormat() : desc.viewFormat;
+		handle.resource->GetDesc().Format : desc.viewFormat;
 	
 	if (handle.dimensions.depthOrArraySize == 1)
 	{
@@ -95,7 +95,7 @@ D3D12_DEPTH_STENCIL_VIEW_DESC Texture2DComponent::CreateDSV(
 	D3D12_DEPTH_STENCIL_VIEW_DESC toReturn;
 
 	toReturn.Format = desc.viewFormat == DXGI_FORMAT_UNKNOWN ?
-		textureAllocator.GetTextureFormat() : desc.viewFormat;
+		handle.resource->GetDesc().Format : desc.viewFormat;
 	toReturn.Flags = desc.flags;
 
 	if (handle.dimensions.depthOrArraySize == 1)
@@ -189,13 +189,17 @@ void Texture2DComponent::Initialize(ID3D12Device* deviceToUse,
 	TextureComponent::Initialize(deviceToUse, textureInfo, descriptorInfo);
 }
 
-ResourceIndex Texture2DComponent::CreateTexture(
-	const TextureAllocationInfo& textureData,
+ResourceIndex Texture2DComponent::CreateTexture(size_t width, size_t height,
+	size_t arraySize, size_t mipLevels, std::uint8_t sampleCount,
+	std::uint8_t sampleQuality, D3D12_CLEAR_VALUE* clearValue,
 	const TextureComponent<Texture2DShaderResourceDesc, 
 	Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc,
 	Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews)
 {
-	ResourceIndex toReturn = textureAllocator.AllocateTexture(textureData);
+	TextureAllocationInfo allocationInfo(this->textureFormat, texelSize, width,
+		height, arraySize, mipLevels, sampleCount, sampleQuality, clearValue);
+
+	ResourceIndex toReturn = textureAllocator.AllocateTexture(allocationInfo);
 
 	if (toReturn == ResourceIndex(-1))
 		return toReturn;

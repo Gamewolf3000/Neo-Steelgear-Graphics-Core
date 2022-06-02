@@ -22,9 +22,9 @@ void InitializationHelper(std::function<void(ID3D12Device*,
 
 	std::array<size_t, 4> heapSizes = { 1000000, 10000000, 100000000, 1000000000 };
 
-	std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
-		{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
-		{DXGI_FORMAT_R32G32B32_UINT, 12} };
+	std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = { 
+		{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+		{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
 
 	std::vector<AllowedViews> ViewCombinations = { {false, false, false, false},
 		{true, false, false, false}, {false, true, false, false},
@@ -40,13 +40,13 @@ void InitializationHelper(std::function<void(ID3D12Device*,
 			{
 				bool unacceptableCombination = false;
 				unacceptableCombination |=
-					textureInfo.format != DXGI_FORMAT_D32_FLOAT &&
+					textureInfo.first != DXGI_FORMAT_D32_FLOAT &&
 					allowedViews.dsv;
 				unacceptableCombination |=
-					textureInfo.format == DXGI_FORMAT_D32_FLOAT &&
+					textureInfo.first == DXGI_FORMAT_D32_FLOAT &&
 					!allowedViews.dsv;
 				unacceptableCombination |=
-					textureInfo.format == DXGI_FORMAT_R32G32B32_UINT &&
+					textureInfo.first == DXGI_FORMAT_R32G32B32_UINT &&
 					(allowedViews.rtv || allowedViews.uav);
 
 				if (unacceptableCombination)
@@ -57,8 +57,8 @@ void InitializationHelper(std::function<void(ID3D12Device*,
 					descriptorAllocationInfo = 
 					CreateDescriptorAllocationInfo(maxNrOfTextures, allowedViews);
 
-				TextureComponentInfo componentInfo(textureInfo.format,
-					textureInfo.texelSize, ResourceHeapInfo(heapSize));
+				TextureComponentInfo componentInfo(textureInfo.first,
+					textureInfo.second, ResourceHeapInfo(heapSize));
 
 				func(device, componentInfo, descriptorAllocationInfo);
 			}
@@ -108,7 +108,7 @@ TEST(Texture2DComponentTest, CreatesTexturesCorrectly)
 						AllowedViews allowedViews =
 							ReverseDescriptorAllocationInfo(descriptorAllocationInfo);
 						D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-							mips, arraySize, textureInfo.textureInfo.format, allowedViews);
+							mips, arraySize, textureInfo.format, allowedViews);
 						D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 							device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -122,10 +122,8 @@ TEST(Texture2DComponentTest, CreatesTexturesCorrectly)
 							break;
 
 						currentlyUsedMemory = alignedEnd;
-						TextureAllocationInfo textureAllocationInfo(width, height,
-							arraySize, mips);
-						ResourceIndex index = textureComponent.CreateTexture(
-							textureAllocationInfo);
+						ResourceIndex index = textureComponent.CreateTexture(width,
+							height, arraySize, mips);
 						ASSERT_EQ(index, currentExpectedIndex++);
 					}
 				}
@@ -135,6 +133,14 @@ TEST(Texture2DComponentTest, CreatesTexturesCorrectly)
 
 	InitializationHelper(lambda);
 }
+
+struct TextureAllocationHelpStruct
+{
+	UINT width;
+	UINT height;
+	UINT16 arraySize;
+	UINT16 mips;
+};
 
 TEST(Texture2DComponentTest, RemovesTexturesCorrectly)
 {
@@ -150,7 +156,7 @@ TEST(Texture2DComponentTest, RemovesTexturesCorrectly)
 		{
 			size_t currentlyUsedMemory = 0;
 			size_t currentExpectedIndex = 0;
-			std::vector<std::pair<ResourceIndex, TextureAllocationInfo>> allocations;
+			std::vector<std::pair<ResourceIndex, TextureAllocationHelpStruct>> allocations;
 			Texture2DComponent textureComponent;
 			textureComponent.Initialize(device, textureInfo,
 				descriptorAllocationInfo);
@@ -164,7 +170,7 @@ TEST(Texture2DComponentTest, RemovesTexturesCorrectly)
 						AllowedViews allowedViews =
 							ReverseDescriptorAllocationInfo(descriptorAllocationInfo);
 						D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width, height,
-							mips, arraySize, textureInfo.textureInfo.format, allowedViews);
+							mips, arraySize, textureInfo.format, allowedViews);
 						D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 							device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -178,13 +184,12 @@ TEST(Texture2DComponentTest, RemovesTexturesCorrectly)
 							break;
 
 						currentlyUsedMemory = alignedEnd;
-						TextureAllocationInfo textureAllocationInfo(width, height,
-							arraySize, mips);
-						ResourceIndex index = textureComponent.CreateTexture(
-							textureAllocationInfo);
+						ResourceIndex index = textureComponent.CreateTexture(width,
+							height, arraySize, mips);
 						ASSERT_NE(index, ResourceIndex(-1));
-						allocations.push_back(
-							std::make_pair(index, textureAllocationInfo));
+						TextureAllocationHelpStruct allocationHelper = { width, height,
+							arraySize, mips };
+						allocations.push_back(std::make_pair(index, allocationHelper));
 					}
 				}
 			}
@@ -194,7 +199,9 @@ TEST(Texture2DComponentTest, RemovesTexturesCorrectly)
 
 			for (auto& allocation : allocations)
 			{
-				size_t index = textureComponent.CreateTexture(allocation.second);
+				TextureAllocationHelpStruct allocationHelper = allocation.second;
+				size_t index = textureComponent.CreateTexture(allocationHelper.width,
+					allocationHelper.height, allocationHelper.arraySize, allocationHelper.mips);
 				ASSERT_LE(index, allocations.back().first + 1);
 			}
 		}

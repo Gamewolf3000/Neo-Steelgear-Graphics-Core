@@ -56,9 +56,9 @@ TEST(Texture2DComponentDataTest, PerformsSimpleAddsCorrectly)
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
 		std::array<UINT16, 2> mipLevels = { 1, 0 };
-		std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
-			{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
-			{DXGI_FORMAT_R32G32B32_UINT, 12} };
+		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = {
+			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
 
 		for (auto width : dimensions)
 		{
@@ -79,7 +79,7 @@ TEST(Texture2DComponentDataTest, PerformsSimpleAddsCorrectly)
 						for (auto textureInfo : textureInfos)
 						{
 							D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
-								height, mips, arraySize, textureInfo.format,
+								height, mips, arraySize, textureInfo.first,
 								{ false, false, false, false });
 							D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 								device->GetResourceAllocationInfo(0, 1, &desc);
@@ -152,9 +152,9 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
 		std::array<UINT16, 2> mipLevels = { 1, 0 };
-		std::vector<TextureInfo> textureInfos = { 
+		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = {
 			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4}, 
-			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
+			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, 
 			{DXGI_FORMAT_R32G32B32_UINT, 12} };
 
 		for (auto width : dimensions)
@@ -176,7 +176,7 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 						for (auto textureInfo : textureInfos)
 						{
 							D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
-								height, mips, arraySize, textureInfo.format,
+								height, mips, arraySize, textureInfo.first,
 								{ false, false, false, false });
 							D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 								device->GetResourceAllocationInfo(0, 1, &desc);
@@ -276,9 +276,9 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
 		std::array<UINT16, 2> mipLevels = { 1, 0 };
-		std::vector<TextureInfo> textureInfos = { {DXGI_FORMAT_R8G8B8A8_UNORM, 4},
-			{DXGI_FORMAT_D32_FLOAT, 4}, {DXGI_FORMAT_R32G32B32A32_FLOAT, 16},
-			{DXGI_FORMAT_R32G32B32_UINT, 12} };
+		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = { 
+			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
 
 		size_t currentFenceValue = 0;
 		ID3D12Fence* fence = CreateFence(device, currentFenceValue,
@@ -307,8 +307,8 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 			componentData.Initialize(device, totalNrOfFrames, updateType,
 				totalSize);
 
-			TextureComponentInfo componentInfo(textureInfo.format,
-				textureInfo.texelSize, ResourceHeapInfo(totalSize));
+			TextureComponentInfo componentInfo(textureInfo.first,
+				textureInfo.second, ResourceHeapInfo(totalSize));
 			Texture2DComponent component;
 			component.Initialize(device, componentInfo, {}); // Views should not affect this
 
@@ -321,7 +321,7 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 						for (auto arraySize : arraySizes)
 						{
 							D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
-								height, mips, arraySize, textureInfo.format,
+								height, mips, arraySize, textureInfo.first,
 								{ false, false, false, false });
 							D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 								device->GetResourceAllocationInfo(0, 1, &desc);
@@ -337,10 +337,8 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 
 							currentlyUsedMemory = alignedEnd;
 
-							TextureAllocationInfo textureAllocationInfo(width,
-								height, arraySize, mips);
-							auto index = component.CreateTexture(
-								textureAllocationInfo);
+							auto index = component.CreateTexture(width, height,
+								arraySize, mips);
 							ASSERT_NE(index, ResourceIndex(-1));
 							auto handle = component.GetTextureHandle(index);
 
@@ -380,7 +378,7 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 									static_cast<unsigned char>(subresource + 1),
 									nrOfRows * rowSize);
 								componentData.UpdateComponentData(index,
-									currentData, textureInfo.texelSize, subresource);
+									currentData, textureInfo.second, subresource);
 								internalOffset += nrOfRows * rowSize;
 							}
 
@@ -407,7 +405,7 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 				std::vector<D3D12_RESOURCE_BARRIER> barriers;
 				componentData.PrepareUpdates(barriers, component);
 				componentData.UpdateComponentResources(commandStructure.list,
-					uploader, component, textureInfo.texelSize, textureInfo.format);
+					uploader, component, textureInfo.second, textureInfo.first);
 
 				ExecuteGraphicsCommandList(commandStructure.list, commandStructure.queue);
 				FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
