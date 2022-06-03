@@ -11,12 +11,13 @@
 
 struct TextureComponentInfo
 {
-	TextureInfo textureInfo;
+	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+	std::uint8_t texelSize = 0;
 	ResourceHeapInfo heapInfo;
 
 	TextureComponentInfo(DXGI_FORMAT format, std::uint8_t texelSize,
-		const ResourceHeapInfo& heapInfo) :
-		textureInfo({format, texelSize}), heapInfo(heapInfo)
+		const ResourceHeapInfo& heapInfo) : format(format),
+		texelSize(texelSize), heapInfo(heapInfo)
 	{
 		// Empty
 	}
@@ -55,6 +56,9 @@ public:
 	};
 
 protected:
+	DXGI_FORMAT textureFormat = DXGI_FORMAT_UNKNOWN;
+	std::uint8_t texelSize = 0;
+
 	TextureAllocator textureAllocator;
 
 	template<typename T>
@@ -117,10 +121,6 @@ public:
 	void Initialize(ID3D12Device* device, const TextureComponentInfo& textureInfo,
 		const std::vector<DescriptorAllocationInfo<TextureViewDesc>>& descriptorInfo);
 
-	virtual ResourceIndex CreateTexture(const TextureAllocationInfo& textureData,
-		const TextureReplacementViews& replacementViews = 
-		TextureReplacementViews()) = 0;
-
 	void RemoveComponent(ResourceIndex indexToRemove);
 
 	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
@@ -152,16 +152,15 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeTextureAllocator
 	{
 		auto& allocationInfo = textureInfo.heapInfo.info.external;
 
-		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			views, allocationInfo.heap, allocationInfo.startOffset,
+		textureAllocator.Initialize(device, views,
+			allocationInfo.heap, allocationInfo.startOffset,
 			allocationInfo.endOffset);
 	}
 	else
 	{
 		auto& allocationInfo = textureInfo.heapInfo.info.owned;
 
-		textureAllocator.Initialize(textureInfo.textureInfo, device,
-			views, allocationInfo.heapSize);
+		textureAllocator.Initialize(device, views, allocationInfo.heapSize);
 	}
 }
 
@@ -235,9 +234,12 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeDescriptorAlloca
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::TextureComponent(
 	TextureComponent&& other) noexcept : ResourceComponent(std::move(other)), 
+	textureFormat(other.textureFormat), texelSize(other.texelSize),
 	textureAllocator(std::move(other.textureAllocator)), srv(other.srv), 
 	uav(other.uav), rtv(other.rtv), dsv(other.dsv)
 {
+	other.textureFormat = DXGI_FORMAT_UNKNOWN;
+	other.texelSize = 0;
 	other.srv.index = other.uav.index = other.rtv.index =
 		other.dsv.index = std::uint8_t(-1);
 }
@@ -250,11 +252,16 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::operator=(
 	if (this != &other)
 	{
 		ResourceComponent::operator=(std::move(other));
+		textureFormat = other.textureFormat;
+		texelSize = other.texelSize;
 		textureAllocator = std::move(other.textureAllocator);
 		srv = other.srv;
 		uav = other.uav;
 		rtv = other.rtv;
 		dsv = other.dsv;
+
+		other.textureFormat = DXGI_FORMAT_UNKNOWN;
+		other.texelSize = 0;
 		other.srv.index = other.uav.index = other.rtv.index =
 			other.dsv.index = std::uint8_t(-1);
 	}
@@ -267,6 +274,8 @@ inline void TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::Initialize(
 	ID3D12Device* device, const TextureComponentInfo& textureInfo,
 	const std::vector<DescriptorAllocationInfo<TextureViewDesc>>& descriptorInfo)
 {
+	textureFormat = textureInfo.format;
+	texelSize = textureInfo.texelSize;
 	InitializeDescriptorAllocators(device, descriptorInfo); // Must be done first so allowed views are set correct
 	InitializeTextureAllocator(device, textureInfo);
 }

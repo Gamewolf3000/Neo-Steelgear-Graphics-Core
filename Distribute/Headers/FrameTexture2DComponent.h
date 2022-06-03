@@ -9,7 +9,13 @@
 
 struct Texture2DCreationOperation
 {
-	TextureAllocationInfo allocationInfo;
+	size_t width = 0;
+	size_t height = 0;
+	size_t arraySize = 0;
+	size_t mipLevels = 0;
+	std::uint8_t sampleCount = 0;
+	std::uint8_t sampleQuality = 0;
+	std::optional<D3D12_CLEAR_VALUE> clearValue = std::nullopt;
 	Texture2DComponentTemplate::TextureReplacementViews replacementViews;
 };
 
@@ -41,7 +47,9 @@ public:
 		const std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>&
 		descriptorInfo);
 
-	ResourceIndex CreateTexture(const TextureAllocationInfo& allocationInfo,
+	ResourceIndex CreateTexture(size_t width, size_t height, size_t arraySize = 1,
+		size_t mipLevels = 1, std::uint8_t sampleCount = 1,
+		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr,
 		const Texture2DComponentTemplate::TextureReplacementViews&
 		replacementViews = {});
 
@@ -69,9 +77,13 @@ inline void FrameTexture2DComponent<Frames>::HandleStoredOperations()
 	{
 		if (operation.type == Texture2DLifetimeOperationType::CREATION)
 		{
+			Texture2DCreationOperation creationInfo = operation.creation;
 			this->resourceComponents[this->activeFrame].CreateTexture(
-				operation.creation.allocationInfo,
-				operation.creation.replacementViews);
+				creationInfo.width, creationInfo.height, 
+				creationInfo.arraySize, creationInfo.mipLevels,
+				creationInfo.sampleCount, creationInfo.sampleQuality,
+				creationInfo.clearValue.has_value() ? &(*creationInfo.clearValue) : nullptr,
+				creationInfo.replacementViews);
 		}
 		else
 		{
@@ -130,8 +142,8 @@ inline void FrameTexture2DComponent<Frames>::Initialize(ID3D12Device* deviceToUs
 		Texture2DCreationOperation>::Initialize(deviceToUse, textureInfo,
 			descriptorInfo);
 	device = deviceToUse;
-	texelSize = textureInfo.textureInfo.texelSize;
-	textureFormat = textureInfo.textureInfo.format;
+	texelSize = textureInfo.texelSize;
+	textureFormat = textureInfo.format;
 	if (componentUpdateType != UpdateType::INITIALISE_ONLY &&
 		componentUpdateType != UpdateType::NONE)
 	{
@@ -160,25 +172,37 @@ inline void FrameTexture2DComponent<Frames>::Initialize(ID3D12Device* deviceToUs
 
 template<FrameType Frames>
 inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
-	const TextureAllocationInfo& allocationInfo,
+	size_t width, size_t height, size_t arraySize, size_t mipLevels,
+	std::uint8_t sampleCount, std::uint8_t sampleQuality,
+	D3D12_CLEAR_VALUE* clearValue,
 	const TextureComponent<Texture2DShaderResourceDesc,
 	Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc,
 	Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews)
 {
 	ResourceIndex toReturn =
 		this->resourceComponents[this->activeFrame].CreateTexture(
-			allocationInfo, replacementViews);
+			width, height, arraySize, mipLevels, sampleCount, 
+			sampleQuality, clearValue, replacementViews);
 
 	if (toReturn == ResourceIndex(-1))
 		return ResourceIndex(-1);
 
-	if (Frames != 1)
+	if constexpr (Frames != 1)
 	{
 		typename FrameResourceComponent<Texture2DComponent, Frames,
 			Texture2DCreationOperation>::StoredLifetimeOperation lifetimeOperation;
 		lifetimeOperation.type = Texture2DLifetimeOperationType::CREATION;
 		lifetimeOperation.framesLeft = Frames - 1;
-		lifetimeOperation.creation = { allocationInfo, replacementViews };
+		lifetimeOperation.creation.width = width; 
+		lifetimeOperation.creation.height = height;
+		lifetimeOperation.creation.arraySize = arraySize;
+		lifetimeOperation.creation.mipLevels = mipLevels;
+		lifetimeOperation.creation.sampleCount = sampleCount;
+		lifetimeOperation.creation.sampleQuality = sampleQuality;
+		lifetimeOperation.creation.clearValue =
+			(clearValue == nullptr ? std::nullopt :
+				std::make_optional(*clearValue));
+		lifetimeOperation.creation.replacementViews = replacementViews;
 		this->storedLifetimeOperations.push_back(lifetimeOperation);
 	}
 
@@ -202,9 +226,11 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 		rows.data(), rowSizes.data(), nullptr);
 
 	for (unsigned int subresource = 0; subresource < nrOfSubresources; ++subresource)
-		totalSize += rows[subresource] * rowSizes[subresource];
+	{
+		totalSize += static_cast<unsigned int>(rows[subresource] *
+			rowSizes[subresource]);
+	}
 
-	//LOOP HERE AND DETERMINE TOTAL SIZE!
 	this->componentData.AddComponent(toReturn, totalSize, handle.resource);
 
 	return toReturn;

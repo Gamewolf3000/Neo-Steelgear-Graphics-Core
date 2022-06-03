@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
@@ -31,6 +33,8 @@ protected:
 		size_t heapOffset, ID3D12Device* device);
 
 	AllowedViews views;
+	std::vector<ID3D12Heap*> oldHeaps;
+	std::vector<ID3D12Resource*> oldResources;
 
 public:
 	ResourceAllocator() = default;
@@ -41,4 +45,6 @@ public:
 	ResourceAllocator& operator=(ResourceAllocator&& other) noexcept;
 
 	void Initialize(const AllowedViews& allowedViews);
+
+	void ClearOldResources();
 };

@@ -160,7 +160,7 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 	if (toReturn == ResourceIndex(-1))
 		return ResourceIndex(-1);
 
-	if (Frames != 1)
+	if constexpr (Frames != 1)
 	{
 		typename FrameResourceComponent<BufferComponent, Frames,
 			BufferCreationOperation>::StoredLifetimeOperation lifetimeOperation;

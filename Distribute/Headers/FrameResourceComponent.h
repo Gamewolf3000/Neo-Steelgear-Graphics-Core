@@ -124,7 +124,7 @@ FrameResourceComponent<Component, Frames, CreationOperation>::RemoveComponent(
 {
 	resourceComponents[this->activeFrame].RemoveComponent(indexToRemove);
 
-	if (Frames != 1)
+	if constexpr (Frames != 1)
 	{
 		StoredLifetimeOperation toStore;
 		toStore.type = LifetimeOperationType::REMOVAL;

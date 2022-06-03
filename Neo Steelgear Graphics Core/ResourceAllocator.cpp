@@ -68,10 +68,18 @@ ResourceAllocator::~ResourceAllocator()
 {
 	if (heapData.heapOwned && heapData.heap != nullptr)
 		heapData.heap->Release();
+
+	for (auto& resource : oldResources)
+		resource->Release();
+
+	for (auto& heap : oldHeaps)
+		heap->Release();
 }
 
 ResourceAllocator::ResourceAllocator(ResourceAllocator&& other) noexcept :
-	heapData(other.heapData), views(other.views) 
+	heapData(other.heapData), views(other.views), 
+	oldHeaps(std::move(other.oldHeaps)), 
+	oldResources(std::move(other.oldResources))
 {
 	other.heapData = ResourceHeapData();
 	other.views = AllowedViews();
@@ -81,10 +89,21 @@ ResourceAllocator& ResourceAllocator::operator=(ResourceAllocator&& other) noexc
 {
 	if (this != &other)
 	{
+		if (heapData.heapOwned)
+			heapData.heap->Release();
+
+		for (auto& resource : oldResources)
+			resource->Release();
+
+		for (auto& heap : oldHeaps)
+			heap->Release();
+
 		heapData = other.heapData;
 		other.heapData = ResourceHeapData();
 		views = other.views;
 		other.views = AllowedViews();
+		oldHeaps = std::move(other.oldHeaps);
+		oldResources = std::move(other.oldResources);
 	}
 
 	return *this;
@@ -93,4 +112,16 @@ ResourceAllocator& ResourceAllocator::operator=(ResourceAllocator&& other) noexc
 void ResourceAllocator::Initialize(const AllowedViews& allowedViews)
 {
 	views = allowedViews;
+}
+
+void ResourceAllocator::ClearOldResources()
+{
+	for (auto& resource : oldResources)
+		resource->Release();
+
+	for (auto& heap : oldHeaps)
+		heap->Release();
+
+	oldResources.clear();
+	oldHeaps.clear();
 }

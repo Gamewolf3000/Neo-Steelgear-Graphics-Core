@@ -80,7 +80,9 @@ public:
 	void Initialize(ID3D12Device* deviceToUse, const TextureComponentInfo& textureInfo,
 		const std::vector<DescriptorAllocationInfo<TextureViewDesc>>& descriptorInfo);
 
-	ResourceIndex CreateTexture(const TextureAllocationInfo& textureData,
+	ResourceIndex CreateTexture(size_t width, size_t height, size_t arraySize = 1,
+		size_t mipLevels = 1, std::uint8_t sampleCount = 1,
+		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr,
 		const TextureComponent<Texture2DShaderResourceDesc, 
 		Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc, 
 		Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews = {});

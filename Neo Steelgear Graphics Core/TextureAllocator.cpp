@@ -73,6 +73,57 @@ void TextureAllocator::Initialize(ID3D12Device* deviceToUse,
 	heapData.endOffset = heapSize;
 }
 
+void TextureAllocator::ResizeAllocator(size_t newSize, 
+	ID3D12GraphicsCommandList* list)
+{
+	if (heapData.heapOwned == false)
+		throw std::runtime_error("Illegal attempt to resize non owned heap");
+
+	D3D12_HEAP_FLAGS heapFlag = views.dsv || views.rtv ?
+		D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES :
+		D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+	auto oldHeap = heapData.heap;
+	heapData.heap = AllocateHeap(newSize, false, heapFlag, device);
+	heapData.endOffset = newSize;
+
+	textures.AddChunk(newSize - textures.TotalSize(), true);
+
+	for (unsigned int i = 0; i < textures.GetCurrentMaxIndex(); ++i)
+	{
+		if (textures.ChunkActive(i))
+		{
+			auto desc = textures[i].resource->GetDesc();
+			const D3D12_CLEAR_VALUE* clearValue = textures[i].clearValue.has_value() ?
+				&textures[i].clearValue.value() : nullptr;
+
+			ID3D12Resource* oldResource = textures[i].resource;
+			textures[i].resource = ResourceAllocator::AllocateResource(desc,
+				textures[i].currentState, clearValue, textures.GetStartOfChunk(i), device);
+
+			if (list != nullptr)
+			{
+				list->CopyResource(textures[i].resource, oldResource);
+				oldResources.push_back(oldResource);
+			}
+			else
+			{
+				oldResource->Release();
+			}
+		}
+	}
+
+	if (list != nullptr)
+		oldHeaps.push_back(oldHeap);
+	else
+		oldHeap->Release();
+}
+
+void TextureAllocator::ResetAllocator()
+{
+	ResourceAllocator::ClearOldResources();
+	textures.ClearHeap();
+}
+
 size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info)
 {
 	D3D12_RESOURCE_DESC desc = CreateTextureDesc(info);
@@ -92,6 +143,9 @@ size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info)
 				clearValue, textures.GetStartOfChunk(textureEntryIndex), device);
 		textures[textureEntryIndex].currentState = D3D12_RESOURCE_STATE_COMMON;
 		textures[textureEntryIndex].dimensions = info.dimensions;
+		textures[textureEntryIndex].texelSize = info.texelSize;
+		textures[textureEntryIndex].clearValue = clearValue != nullptr ?
+			std::make_optional(*clearValue) : std::nullopt;
 	}
 
 	return textureEntryIndex;

@@ -58,22 +58,27 @@ private:
 		ID3D12Resource* resource = nullptr;
 		D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COMMON;
 		TextureDimensions dimensions;
+		std::uint8_t texelSize = 0;
+		std::optional<D3D12_CLEAR_VALUE> clearValue = std::nullopt;
 
 		TextureEntry()
 		{
 			resource = nullptr;
 			currentState = D3D12_RESOURCE_STATE_COMMON;
+			texelSize = 0;
 		}
 
 		TextureEntry(const TextureEntry& other) = delete;
 		TextureEntry& operator=(const TextureEntry& other) = delete;
 
 		TextureEntry(TextureEntry&& other) noexcept : resource(other.resource),
-			currentState(other.currentState), dimensions(other.dimensions)
+			currentState(other.currentState), dimensions(other.dimensions),
+			texelSize(other.texelSize), clearValue(std::move(other.clearValue))
 		{
 			other.resource = nullptr;
 			other.currentState = D3D12_RESOURCE_STATE_COMMON;
 			other.dimensions = TextureDimensions();
+			other.texelSize = 0;
 		}
 
 		TextureEntry& operator=(TextureEntry&& other) noexcept
@@ -86,6 +91,9 @@ private:
 				other.currentState = D3D12_RESOURCE_STATE_COMMON;
 				dimensions = other.dimensions;
 				other.dimensions = TextureDimensions();
+				texelSize = other.texelSize;
+				other.texelSize = 0;
+				clearValue = std::move(other.clearValue);
 			}
 
 			return *this;
@@ -116,6 +124,9 @@ public:
 		size_t startOffset, size_t endOffset);
 	void Initialize(ID3D12Device* deviceToUse,
 		const AllowedViews& allowedViews, size_t heapSize);
+
+	void ResizeAllocator(size_t newSize, ID3D12GraphicsCommandList* list = nullptr);
+	void ResetAllocator();
 
 	size_t AllocateTexture(const TextureAllocationInfo& info);
 

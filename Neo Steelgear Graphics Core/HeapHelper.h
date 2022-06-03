@@ -33,7 +33,8 @@ private:
 	};
 
 	StableVector<Chunk> chunks;
-	size_t currentSize;
+	size_t currentSize = 0;
+	size_t currentlyActiveChunks = 0;
 
 	void CombineAdjacentChunks(size_t chunkIndex);
 
@@ -69,6 +70,10 @@ public:
 
 	size_t GetStartOfChunk(size_t index) const;
 	size_t TotalSize() const;
+	size_t NrOfAllocatedChunks() const;
+	size_t GetCurrentMaxIndex() const;
+
+	bool ChunkActive(size_t index) const;
 
 	void RemoveIf(std::function<bool(const T&)> toCheckWith);
 	void ClearHeap(size_t newSize = size_t(-1));
@@ -267,9 +272,11 @@ inline size_t HeapHelper<T>::Align(size_t number, size_t alignment)
 
 template<typename T>
 inline HeapHelper<T>::HeapHelper(HeapHelper&& other) : 
-	chunks(std::move(other.chunks)), currentSize(other.currentSize)
+	chunks(std::move(other.chunks)), currentSize(other.currentSize),
+	currentlyActiveChunks(other.currentlyActiveChunks)
 {
 	other.currentSize = 0;
+	other.currentlyActiveChunks = 0;
 }
 
 template<typename T>
@@ -279,7 +286,9 @@ inline HeapHelper<T>& HeapHelper<T>::operator=(HeapHelper&& other)
 	{
 		chunks = std::move(other.chunks);
 		currentSize = other.currentSize;
+		currentlyActiveChunks = other.currentlyActiveChunks;
 		other.currentSize = 0;
+		other.currentlyActiveChunks = 0;
 	}
 
 	return *this;
@@ -317,6 +326,7 @@ inline size_t HeapHelper<T>::AllocateChunk(size_t chunkSize,
 	{
 		SplitChunk(chunkSize, alignment, chunkIndex);
 		chunks[chunkIndex].status = ChunkStatus::OCCUPIED;
+		++currentlyActiveChunks;
 	}
 
 	return chunkIndex;
@@ -327,6 +337,7 @@ inline void HeapHelper<T>::DeallocateChunk(size_t chunkIndex)
 {
 	chunks[chunkIndex].status = ChunkStatus::AVAILABLE;
 	chunks[chunkIndex].specificData = T();
+	--currentlyActiveChunks;
 
 	CombineAdjacentChunks(chunkIndex);
 }
@@ -343,7 +354,7 @@ inline void HeapHelper<T>::AddChunk(size_t chunkSize, bool combine)
 	currentSize += chunkSize;
 
 	if (combine)
-		CombineAdjacentChunks(chunks.size() - 1);
+		CombineAdjacentChunks(chunks.TotalSize() - 1);
 }
 
 template<typename T>
@@ -368,6 +379,24 @@ template<typename T>
 inline size_t HeapHelper<T>::TotalSize() const
 {
 	return currentSize;
+}
+
+template<typename T>
+inline size_t HeapHelper<T>::NrOfAllocatedChunks() const
+{
+	return currentlyActiveChunks;
+}
+
+template<typename T>
+inline size_t HeapHelper<T>::GetCurrentMaxIndex() const
+{
+	return chunks.TotalSize();
+}
+
+template<typename T>
+inline bool HeapHelper<T>::ChunkActive(size_t index) const
+{
+	return chunks[index].status == ChunkStatus::OCCUPIED;
 }
 
 template<typename T>

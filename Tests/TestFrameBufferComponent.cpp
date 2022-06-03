@@ -271,8 +271,6 @@ void UpdateBuffers(ID3D12Device* device, UpdateType updateType,
 	if (readbackBuffer == nullptr)
 		throw "Cannot proceed with tests as readback buffer cannot be created";
 
-	readbackBuffer->SetName(L"ReadbackBuffer");
-
 	for (auto& nrOfElements : elementsPerAllocation)
 	{
 		FrameBufferComponent<frames> bufferComponent;
@@ -328,8 +326,9 @@ void UpdateBuffers(ID3D12Device* device, UpdateType updateType,
 		}
 	}
 
-	delete data;
+	delete[] data;
 	readbackBuffer->Release();
+	fence->Release();
 }
 
 TEST(FrameBufferComponentTest, CorrectlyUpdatesBuffers)
