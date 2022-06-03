@@ -109,7 +109,8 @@ private:
 	ID3D12Device* device = nullptr;
 	HeapHelper<TextureEntry> textures;
 
-	D3D12_RESOURCE_DESC CreateTextureDesc(const TextureAllocationInfo& info);
+	D3D12_RESOURCE_DESC CreateTextureDesc(const TextureAllocationInfo& info,
+		std::optional<D3D12_RESOURCE_FLAGS> replacementBindings);
 
 public:
 	TextureAllocator() = default;
@@ -128,7 +129,8 @@ public:
 	void ResizeAllocator(size_t newSize, ID3D12GraphicsCommandList* list = nullptr);
 	void ResetAllocator();
 
-	size_t AllocateTexture(const TextureAllocationInfo& info);
+	size_t AllocateTexture(const TextureAllocationInfo& info, 
+		std::optional<D3D12_RESOURCE_FLAGS> replacementBindings = std::nullopt);
 
 	void DeallocateTexture(size_t index);
 

@@ -1,7 +1,8 @@
 #include "TextureAllocator.h"
 
 D3D12_RESOURCE_DESC TextureAllocator::CreateTextureDesc(
-	const TextureAllocationInfo& info)
+	const TextureAllocationInfo& info,
+	std::optional<D3D12_RESOURCE_FLAGS> replacementBindings)
 {
 	D3D12_RESOURCE_DESC toReturn;
 
@@ -15,7 +16,8 @@ D3D12_RESOURCE_DESC TextureAllocator::CreateTextureDesc(
 	toReturn.SampleDesc.Count = info.sampleCount;
 	toReturn.SampleDesc.Quality = info.sampleQuality;
 	toReturn.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	toReturn.Flags = CreateBindFlag();
+	toReturn.Flags = replacementBindings.has_value() ?
+		replacementBindings.value() : CreateBindFlag();
 
 	return toReturn;
 }
@@ -124,9 +126,10 @@ void TextureAllocator::ResetAllocator()
 	textures.ClearHeap();
 }
 
-size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info)
+size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info,
+	std::optional<D3D12_RESOURCE_FLAGS> replacementBindings)
 {
-	D3D12_RESOURCE_DESC desc = CreateTextureDesc(info);
+	D3D12_RESOURCE_DESC desc = CreateTextureDesc(info, replacementBindings);
 	auto resourceInfo = device->GetResourceAllocationInfo(0, 1, &desc);
 
 	size_t textureEntryIndex = textures.AllocateChunk(
