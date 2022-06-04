@@ -113,7 +113,7 @@ void DescriptorAllocator::Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType,
 }
 
 size_t DescriptorAllocator::AllocateSRV(ID3D12Resource* resource, 
-	D3D12_SHADER_RESOURCE_VIEW_DESC* desc, size_t indexInHeap)
+	const D3D12_SHADER_RESOURCE_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
@@ -125,7 +125,7 @@ size_t DescriptorAllocator::AllocateSRV(ID3D12Resource* resource,
 }
 
 size_t DescriptorAllocator::AllocateDSV(ID3D12Resource* resource, 
-	D3D12_DEPTH_STENCIL_VIEW_DESC* desc, size_t indexInHeap)
+	const D3D12_DEPTH_STENCIL_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
@@ -137,7 +137,7 @@ size_t DescriptorAllocator::AllocateDSV(ID3D12Resource* resource,
 }
 
 size_t DescriptorAllocator::AllocateRTV(ID3D12Resource* resource, 
-	D3D12_RENDER_TARGET_VIEW_DESC* desc, size_t indexInHeap)
+	const D3D12_RENDER_TARGET_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
@@ -149,7 +149,7 @@ size_t DescriptorAllocator::AllocateRTV(ID3D12Resource* resource,
 }
 
 size_t DescriptorAllocator::AllocateUAV(ID3D12Resource* resource, 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, ID3D12Resource* counterResource,
+	const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, ID3D12Resource* counterResource,
 	size_t indexInHeap)
 {
 	size_t index = 0;
@@ -161,8 +161,8 @@ size_t DescriptorAllocator::AllocateUAV(ID3D12Resource* resource,
 	return index;
 }
 
-size_t DescriptorAllocator::AllocateCBV(D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
-	size_t indexInHeap)
+size_t DescriptorAllocator::AllocateCBV(
+	const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc, size_t indexInHeap)
 {
 	size_t index = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE handle;
