@@ -193,3 +193,8 @@ size_t DescriptorAllocator::NrOfStoredDescriptors() const
 {
 	return descriptors.TotalSize();
 }
+
+void DescriptorAllocator::Reset()
+{
+	descriptors.Clear();
+}

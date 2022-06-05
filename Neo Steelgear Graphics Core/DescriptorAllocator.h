@@ -65,6 +65,7 @@ public:
 	void DeallocateDescriptor(size_t index);
 
 	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle(size_t index) const;
-
 	size_t NrOfStoredDescriptors() const;
+
+	void Reset();
 };
