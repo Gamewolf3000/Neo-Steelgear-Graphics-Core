@@ -5,47 +5,14 @@
 
 #include "DescriptorAllocator.h"
 #include "ResourceUploader.h"
+#include "HeapAllocatorGPU.h"
+#include "ResourceAllocator.h"
 
-enum class HeapType
+struct ResourceComponentMemoryInfo
 {
-	EXTERNAL,
-	OWNED
-};
-
-struct ResourceHeapInfo
-{
-	HeapType heapType;
-
-	union
-	{
-		struct ExternalInfo
-		{
-			ID3D12Heap* heap;
-			size_t startOffset;
-			size_t endOffset;
-		} external;
-
-		struct OwnedInfo
-		{
-			size_t heapSize;
-		} owned;
-
-	} info;
-
-	ResourceHeapInfo(size_t heapSizeInBytes)
-	{
-		heapType = HeapType::OWNED;
-		info.owned.heapSize = heapSizeInBytes;
-	}
-
-	ResourceHeapInfo(ID3D12Heap* heap, size_t endOffset,
-		size_t startOffset = 0)
-	{
-		heapType = HeapType::EXTERNAL;
-		info.external.heap = heap;
-		info.external.startOffset = startOffset;
-		info.external.endOffset = endOffset;
-	}
+	size_t initialMinimumHeapSize = size_t(-1);
+	size_t expansionMinimumSize = size_t(-1);
+	HeapAllocatorGPU* heapAllocator = nullptr;
 };
 
 enum class ViewType
@@ -55,6 +22,12 @@ enum class ViewType
 	UAV = 2,
 	RTV = 3,
 	DSV = 4,
+};
+
+enum class HeapType
+{
+	OWNED,
+	EXTERNAL
 };
 
 template<typename ViewDesc>
@@ -96,7 +69,11 @@ struct DescriptorAllocationInfo
 	}
 };
 
-typedef size_t ResourceIndex;
+struct ResourceIndex
+{
+	ResourceIdentifier allocatorIdentifier;
+	size_t descriptorIndex = size_t(-1);
+};
 
 class ResourceComponent
 {
@@ -111,18 +88,13 @@ public:
 	ResourceComponent(ResourceComponent&& other) noexcept;
 	ResourceComponent& operator=(ResourceComponent&& other) noexcept;
 
-	virtual void RemoveComponent(ResourceIndex indexToRemove) = 0;
+	virtual void RemoveComponent(const ResourceIndex& indexToRemove) = 0;
 
-	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
-		ResourceIndex indexOffset = 0) const;
-	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0) const;
-	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0) const;
-	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0) const;
-	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0) const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV() const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV() const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV() const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV() const;
+	virtual const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV() const;
 
 	virtual bool HasDescriptorsOfType(ViewType type) const = 0;
 

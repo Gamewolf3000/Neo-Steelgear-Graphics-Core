@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
@@ -19,9 +21,39 @@ private:
 		size_t endIndex = size_t(-1);
 	} heapData;
 
+	enum class DescriptorType
+	{
+		NONE,
+		CBV,
+		SRV,
+		UAV,
+		RTV,
+		DSV
+	};
+
 	struct StoredDescriptor
 	{
-		// Empty
+		DescriptorType type;
+
+		union DescriptorDescription
+		{
+			std::optional<D3D12_CONSTANT_BUFFER_VIEW_DESC> cbv;
+			std::optional<D3D12_SHADER_RESOURCE_VIEW_DESC> srv;
+			std::optional<D3D12_UNORDERED_ACCESS_VIEW_DESC> uav;
+			std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv;
+			std::optional<D3D12_DEPTH_STENCIL_VIEW_DESC> dsv;
+
+			DescriptorDescription() : cbv(std::nullopt)
+			{
+				// EMPTY
+			}
+
+		} description;
+
+		StoredDescriptor() : type(DescriptorType::NONE)
+		{
+			// EMPTY
+		}
 	};
 
 	ID3D12Device* device = nullptr;
@@ -43,7 +75,7 @@ public:
 	void Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, ID3D12Device* deviceToUse,
 		ID3D12DescriptorHeap* heap, size_t startIndex, size_t nrOfDescriptors);
 	void Initialize(D3D12_DESCRIPTOR_HEAP_TYPE descriptorType,
-		ID3D12Device* deviceToUse, size_t nrOfDescriptors);
+		ID3D12Device* deviceToUse, size_t startNrOfDescriptors);
 
 	size_t AllocateSRV(ID3D12Resource* resource,
 		const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr, 
@@ -61,6 +93,8 @@ public:
 	size_t AllocateCBV(
 		const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr,
 		size_t indexInHeap = size_t(-1));
+
+	void ReallocateView(size_t indexInHeap, ID3D12Resource* resource);
 
 	void DeallocateDescriptor(size_t index);
 

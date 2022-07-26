@@ -71,8 +71,9 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements,
 	{
 		auto desc = CreateCBV(replacements.cb != std::nullopt ? *replacements.cb :
 			cbv.desc, handle);
-		if (descriptorAllocators[cbv.index].AllocateCBV(&desc, resourceIndex) ==
-			size_t(-1))
+		resourceIndex.descriptorIndex = 
+			descriptorAllocators[cbv.index].AllocateCBV(&desc);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -82,8 +83,9 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements,
 	{
 		auto desc = CreateSRV(replacements.sr != std::nullopt ? *replacements.sr :
 			srv.desc, handle);
-		if (descriptorAllocators[srv.index].AllocateSRV(
-			handle.resource, &desc, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[srv.index].AllocateSRV(
+			handle.resource, &desc);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -101,8 +103,9 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements,
 			counterResource = replacements.ua->counterResource;
 		}
 
-		if (descriptorAllocators[uav.index].AllocateUAV(handle.resource, &desc,
-			counterResource, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[uav.index].AllocateUAV(
+			handle.resource, &desc, counterResource);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -112,8 +115,9 @@ bool BufferComponent::CreateViews(const BufferReplacementViews& replacements,
 	{
 		auto desc = CreateRTV(replacements.rt != std::nullopt ? *replacements.rt :
 			rtv.desc, handle);
-		if (descriptorAllocators[rtv.index].AllocateRTV(
-			handle.resource, &desc, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[rtv.index].AllocateRTV(
+			handle.resource, &desc);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -128,21 +132,9 @@ void BufferComponent::InitializeBufferAllocator(ID3D12Device* device,
 	AllowedViews views{ srv.index != std::uint8_t(-1), uav.index != std::uint8_t(-1),
 		rtv.index != std::uint8_t(-1), false };
 
-	if (bufferInfo.heapInfo.heapType == HeapType::EXTERNAL)
-	{
-		auto& allocationInfo = bufferInfo.heapInfo.info.external;
-
-		bufferAllocator.Initialize(bufferInfo.bufferInfo, device,
-			bufferInfo.mappedResource, views, allocationInfo.heap,
-			allocationInfo.startOffset, allocationInfo.endOffset);
-	}
-	else
-	{
-		auto& allocationInfo = bufferInfo.heapInfo.info.owned;
-
-		bufferAllocator.Initialize(bufferInfo.bufferInfo, device,
-			bufferInfo.mappedResource, views, allocationInfo.heapSize);
-	}
+	bufferAllocator.Initialize(bufferInfo.bufferInfo, device,
+		bufferInfo.mappedResource, views, bufferInfo.memoryInfo.initialMinimumHeapSize,
+		bufferInfo.memoryInfo.expansionMinimumSize, bufferInfo.memoryInfo.heapAllocator);
 }
 
 void BufferComponent::InitializeDescriptorAllocators(ID3D12Device* device,
@@ -245,49 +237,43 @@ void BufferComponent::Initialize(ID3D12Device* device,
 ResourceIndex BufferComponent::CreateBuffer(size_t nrOfElements,
 	const BufferReplacementViews& replacementViews)
 {
-	ResourceIndex toReturn = bufferAllocator.AllocateBuffer(nrOfElements);
+	ResourceIndex toReturn;
+	toReturn.allocatorIdentifier = bufferAllocator.AllocateBuffer(nrOfElements);
 
-	if (toReturn == ResourceIndex(-1))
-		return toReturn;
-
-	BufferHandle handle = bufferAllocator.GetHandle(toReturn);
+	BufferHandle handle = bufferAllocator.GetHandle(toReturn.allocatorIdentifier);
 	if (!CreateViews(replacementViews, handle, toReturn))
 	{
-		bufferAllocator.DeallocateBuffer(toReturn);
-		return ResourceIndex(-1);
+		bufferAllocator.DeallocateBuffer(toReturn.allocatorIdentifier);
+		throw std::runtime_error("Cannot create views for buffer resource");
 	}
 
 	return toReturn;
 }
 
-void BufferComponent::RemoveComponent(ResourceIndex indexToRemove)
+void BufferComponent::RemoveComponent(const ResourceIndex& indexToRemove)
 {
 	ResourceComponent::RemoveComponent(indexToRemove);
-	bufferAllocator.DeallocateBuffer(indexToRemove);
+	bufferAllocator.DeallocateBuffer(indexToRemove.allocatorIdentifier);
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapCBV(
-	ResourceIndex indexOffset) const
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapCBV() const
 {
-	return descriptorAllocators[cbv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[cbv.index].GetDescriptorHandle(0);
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset) const
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapSRV() const
 {
-	return descriptorAllocators[srv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[srv.index].GetDescriptorHandle(0);
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset) const
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapUAV() const
 {
-	return descriptorAllocators[uav.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[uav.index].GetDescriptorHandle(0);
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset) const
+const D3D12_CPU_DESCRIPTOR_HANDLE BufferComponent::GetDescriptorHeapRTV() const
 {
-	return descriptorAllocators[rtv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[rtv.index].GetDescriptorHandle(0);
 }
 
 bool BufferComponent::HasDescriptorsOfType(ViewType type) const
@@ -310,14 +296,14 @@ bool BufferComponent::HasDescriptorsOfType(ViewType type) const
 	}
 }
 
-BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& index)
+BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& resourceIndex)
 {
-	return bufferAllocator.GetHandle(index);
+	return bufferAllocator.GetHandle(resourceIndex.allocatorIdentifier);
 }
 
-unsigned char* BufferComponent::GetMappedPtr()
+unsigned char* BufferComponent::GetMappedPtr(const ResourceIndex& resourceIndex)
 {
-	return bufferAllocator.GetMappedPtr();
+	return bufferAllocator.GetMappedPtr(resourceIndex.allocatorIdentifier);
 }
 
 D3D12_RESOURCE_STATES BufferComponent::GetCurrentState()
@@ -325,13 +311,13 @@ D3D12_RESOURCE_STATES BufferComponent::GetCurrentState()
 	return bufferAllocator.GetCurrentState();
 }
 
-D3D12_RESOURCE_BARRIER BufferComponent::CreateTransitionBarrier(
-	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+void BufferComponent::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
-	return bufferAllocator.CreateTransitionBarrier(newState, flag);
+	return bufferAllocator.CreateTransitionBarrier(newState, barriers, flag);
 }
 
-void BufferComponent::UpdateMappedBuffer(ResourceIndex index, void* data)
+void BufferComponent::UpdateMappedBuffer(const ResourceIndex& resourceIndex, void* data)
 {
-	bufferAllocator.UpdateMappedBuffer(index, data);
+	bufferAllocator.UpdateMappedBuffer(resourceIndex.allocatorIdentifier, data);
 }

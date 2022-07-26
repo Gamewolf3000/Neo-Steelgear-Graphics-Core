@@ -21,10 +21,18 @@ public:
 	FrameBased& operator=(FrameBased&& other) = default;
 
 	virtual void SwapFrame();
+
+	FrameType PeekNext() const;
 };
 
 template<FrameType Frames>
 inline void FrameBased<Frames>::SwapFrame()
 {
 	activeFrame = (activeFrame + 1 == Frames) ? 0 : activeFrame + 1;
+}
+
+template<FrameType Frames>
+inline FrameType FrameBased<Frames>::PeekNext() const
+{
+	return (activeFrame + 1 == Frames) ? 0 : activeFrame + 1;
 }

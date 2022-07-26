@@ -1,6 +1,5 @@
 #include "ResourceAllocator.h"
 
-#include <stdexcept>
 
 D3D12_RESOURCE_FLAGS ResourceAllocator::CreateBindFlag()
 {
@@ -17,42 +16,63 @@ D3D12_RESOURCE_FLAGS ResourceAllocator::CreateBindFlag()
 
 	return toReturn;
 }
+//
+//template<typename InternalAllocationInfo>
+//inline AllocationIdentifier ResourceAllocator::AllocateResource(
+//	const D3D12_RESOURCE_DESC& desc, D3D12_RESOURCE_STATES initialState,
+//	const D3D12_CLEAR_VALUE* clearValue, ID3D12Device* device)
+//{
+//	AllocationIdentifier toReturn;
+//	auto resourceInfo = device->GetResourceAllocationInfo(0, 1, &desc);
+//
+//	for (size_t i = 0; i < heapChunks.size(); ++i)
+//	{
+//		toReturn.internalIndex = heapChunks[i].heapHelper.AllocateChunk(
+//			static_cast<size_t>(resourceInfo.SizeInBytes),
+//			AllocationStrategy::FIRST_FIT, static_cast<size_t>(resourceInfo.Alignment));
+//
+//		if (toReturn.internalIndex != size_t(-1))
+//		{
+//			toReturn.heapChunkIndex = i;
+//			break;
+//		}
+//	}
+//
+//	if (toReturn.heapChunkIndex == size_t(-1)) // Did not fit into existing heap(s)
+//	{
+//		size_t sizeToRequest = resourceInfo.SizeInBytes <= additionalHeapChunksMinimumSize ?
+//			additionalHeapChunksMinimumSize : resourceInfo.SizeInBytes;
+//		AllocateHeapChunk(sizeToRequest, heapChunks[0].heapChunk.heapType,
+//			heapChunks[0].heapChunk.heapFlags);
+//		toReturn.heapChunkIndex = heapChunks.size() - 1;
+//		toReturn.internalIndex = heapChunks.back().heapHelper.AllocateChunk(
+//			static_cast<size_t>(resourceInfo.SizeInBytes),
+//			AllocationStrategy::FIRST_FIT, static_cast<size_t>(resourceInfo.Alignment));
+//	}
+//
+//	//FORTSÄTT HÄR! HAR VART DEN SKA SKAPAS NU MEN MÅSTE FAKTISKT SKAPA DEN SAMT SE TILL ATT DEN KOMMER TILLBAKA TILL CALLERN
+//
+//	ID3D12Resource* toReturn;
+//
+//	HRESULT hr = device->CreatePlacedResource(heapData.heap, heapOffset,
+//		&desc, initialState, clearValue, IID_PPV_ARGS(&toReturn));
+//
+//	if (FAILED(hr))
+//	{
+//		auto error = "Failed to allocate resource in heap in resource allocator";
+//		throw std::runtime_error(error);
+//	}
+//
+//	return toReturn;
+//}
 
-ID3D12Heap* ResourceAllocator::AllocateHeap(size_t size, bool uploadHeap,
-	D3D12_HEAP_FLAGS flags, ID3D12Device* device)
-{
-	D3D12_HEAP_TYPE heapType = uploadHeap ? D3D12_HEAP_TYPE_UPLOAD :
-		D3D12_HEAP_TYPE_DEFAULT;
-
-	D3D12_HEAP_DESC desc;
-	desc.SizeInBytes = size;
-	desc.Properties.Type = heapType;
-	desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	desc.Properties.CreationNodeMask = 0;
-	desc.Properties.VisibleNodeMask = 0;
-	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-	desc.Flags = flags;
-
-	ID3D12Heap* toReturn = nullptr;
-	HRESULT hr = device->CreateHeap(&desc, IID_PPV_ARGS(&toReturn));
-
-	if (FAILED(hr))
-	{
-		auto error = "Failed to allocate heap in resource allocator";
-		throw std::runtime_error(error);
-	}
-
-	return toReturn;
-}
-
-ID3D12Resource* ResourceAllocator::AllocateResource(const D3D12_RESOURCE_DESC& desc,
-	D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* clearValue,
-	size_t heapOffset, ID3D12Device* device)
+ID3D12Resource* ResourceAllocator::AllocateResource(ID3D12Heap* heap,
+	const D3D12_RESOURCE_DESC& desc, D3D12_RESOURCE_STATES initialState,
+	const D3D12_CLEAR_VALUE* clearValue, size_t heapOffset, ID3D12Device* device)
 {
 	ID3D12Resource* toReturn;
 
-	HRESULT hr = device->CreatePlacedResource(heapData.heap, heapOffset,
+	HRESULT hr = device->CreatePlacedResource(heap, heapOffset,
 		&desc, initialState, clearValue, IID_PPV_ARGS(&toReturn));
 
 	if (FAILED(hr))
@@ -66,22 +86,12 @@ ID3D12Resource* ResourceAllocator::AllocateResource(const D3D12_RESOURCE_DESC& d
 
 ResourceAllocator::~ResourceAllocator()
 {
-	if (heapData.heapOwned && heapData.heap != nullptr)
-		heapData.heap->Release();
-
-	for (auto& resource : oldResources)
-		resource->Release();
-
-	for (auto& heap : oldHeaps)
-		heap->Release();
+	// EMPTY
 }
 
 ResourceAllocator::ResourceAllocator(ResourceAllocator&& other) noexcept :
-	heapData(other.heapData), views(other.views), 
-	oldHeaps(std::move(other.oldHeaps)), 
-	oldResources(std::move(other.oldResources))
+	views(other.views)
 {
-	other.heapData = ResourceHeapData();
 	other.views = AllowedViews();
 }
 
@@ -89,39 +99,17 @@ ResourceAllocator& ResourceAllocator::operator=(ResourceAllocator&& other) noexc
 {
 	if (this != &other)
 	{
-		if (heapData.heapOwned)
-			heapData.heap->Release();
-
-		for (auto& resource : oldResources)
-			resource->Release();
-
-		for (auto& heap : oldHeaps)
-			heap->Release();
-
-		heapData = other.heapData;
-		other.heapData = ResourceHeapData();
 		views = other.views;
 		other.views = AllowedViews();
-		oldHeaps = std::move(other.oldHeaps);
-		oldResources = std::move(other.oldResources);
 	}
 
 	return *this;
 }
 
-void ResourceAllocator::Initialize(const AllowedViews& allowedViews)
+void ResourceAllocator::Initialize(const AllowedViews& allowedViews,
+	HeapAllocatorGPU* heapAllocatorToUse, size_t minimumExpansionMemoryRequest)
 {
 	views = allowedViews;
-}
-
-void ResourceAllocator::ClearOldResources()
-{
-	for (auto& resource : oldResources)
-		resource->Release();
-
-	for (auto& heap : oldHeaps)
-		heap->Release();
-
-	oldResources.clear();
-	oldHeaps.clear();
+	heapAllocator = heapAllocatorToUse;
+	additionalHeapChunksMinimumSize = minimumExpansionMemoryRequest;
 }

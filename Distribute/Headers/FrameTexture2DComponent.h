@@ -50,23 +50,22 @@ public:
 	ResourceIndex CreateTexture(size_t width, size_t height, size_t arraySize = 1,
 		size_t mipLevels = 1, std::uint8_t sampleCount = 1,
 		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr,
-		const Texture2DComponentTemplate::TextureReplacementViews&
-		replacementViews = {});
+		const Texture2DComponentTemplate::TextureReplacementViews& replacementViews = {});
 
-	void RemoveComponent(ResourceIndex indexToRemove) override;
+	void RemoveComponent(const ResourceIndex& indexToRemove) override;
 
-	void SetUpdateData(ResourceIndex resourceIndex, void* dataAdress,
+	void SetUpdateData(const ResourceIndex& resourceIndex, void* dataAdress,
 		std::uint8_t subresource);
 	void PrepareResourcesForUpdates(std::vector<D3D12_RESOURCE_BARRIER>& barriers);
 	void PerformUpdates(ID3D12GraphicsCommandList* commandList,
 		ResourceUploader& uploader);
 
-	D3D12_RESOURCE_STATES GetCurrentState(ResourceIndex resourceIndex);
-	void ChangeToState(ResourceIndex resourceIndex,
+	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIndex& resourceIndex);
+	void ChangeToState(const ResourceIndex& resourceIndex,
 		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState);
 
-	TextureHandle GetTextureHandle(ResourceIndex index);
+	TextureHandle GetTextureHandle(const ResourceIndex& index);
 };
 
 template<FrameType Frames>
@@ -78,12 +77,16 @@ inline void FrameTexture2DComponent<Frames>::HandleStoredOperations()
 		if (operation.type == Texture2DLifetimeOperationType::CREATION)
 		{
 			Texture2DCreationOperation creationInfo = operation.creation;
-			this->resourceComponents[this->activeFrame].CreateTexture(
+			auto identifier = this->resourceComponents[this->activeFrame].CreateTexture(
 				creationInfo.width, creationInfo.height, 
 				creationInfo.arraySize, creationInfo.mipLevels,
 				creationInfo.sampleCount, creationInfo.sampleQuality,
 				creationInfo.clearValue.has_value() ? &(*creationInfo.clearValue) : nullptr,
 				creationInfo.replacementViews);
+
+			TextureHandle handle =
+				this->resourceComponents[this->activeFrame].GetTextureHandle(identifier);
+			AddInitializationBarrier(handle.resource);
 		}
 		else
 		{
@@ -147,21 +150,11 @@ inline void FrameTexture2DComponent<Frames>::Initialize(ID3D12Device* deviceToUs
 	if (componentUpdateType != UpdateType::INITIALISE_ONLY &&
 		componentUpdateType != UpdateType::NONE)
 	{
-		unsigned int totalSize = 0;
-		if (textureInfo.heapInfo.heapType == HeapType::EXTERNAL)
-		{
-			totalSize = static_cast<unsigned int>(
-				textureInfo.heapInfo.info.external.endOffset
-				- textureInfo.heapInfo.info.external.startOffset);
-		}
-		else
-		{
-			totalSize = static_cast<unsigned int>(
-				textureInfo.heapInfo.info.owned.heapSize);
-		}
+		unsigned int initialSize = 
+			static_cast<unsigned int>(textureInfo.memoryInfo.initialMinimumHeapSize);
 
 		this->componentData.Initialize(deviceToUse, Frames, 
-			componentUpdateType, totalSize);
+			componentUpdateType, initialSize);
 	}
 	else
 	{
@@ -184,9 +177,6 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 			width, height, arraySize, mipLevels, sampleCount, 
 			sampleQuality, clearValue, replacementViews);
 
-	if (toReturn == ResourceIndex(-1))
-		return ResourceIndex(-1);
-
 	if constexpr (Frames != 1)
 	{
 		typename FrameResourceComponent<Texture2DComponent, Frames,
@@ -208,6 +198,7 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 
 	TextureHandle handle = 
 		this->resourceComponents[this->activeFrame].GetTextureHandle(toReturn);
+	AddInitializationBarrier(handle.resource);
 	auto desc = handle.resource->GetDesc();
 	unsigned int totalSize = 0;
 
@@ -238,7 +229,7 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 
 template<FrameType Frames>
 inline void FrameTexture2DComponent<Frames>::RemoveComponent(
-	ResourceIndex indexToRemove)
+	const ResourceIndex& indexToRemove)
 {
 	FrameResourceComponent<Texture2DComponent, Frames,
 		Texture2DCreationOperation>::RemoveComponent(indexToRemove);
@@ -247,7 +238,7 @@ inline void FrameTexture2DComponent<Frames>::RemoveComponent(
 
 template<FrameType Frames>
 inline void FrameTexture2DComponent<Frames>::SetUpdateData(
-	ResourceIndex resourceIndex, void* dataAdress, std::uint8_t subresource)
+	const ResourceIndex& resourceIndex, void* dataAdress, std::uint8_t subresource)
 {
 	this->componentData.UpdateComponentData(resourceIndex, dataAdress,
 		texelSize, subresource);
@@ -271,7 +262,7 @@ inline void FrameTexture2DComponent<Frames>::PerformUpdates(
 
 template<FrameType Frames>
 inline D3D12_RESOURCE_STATES FrameTexture2DComponent<Frames>::GetCurrentState(
-	ResourceIndex resourceIndex)
+	const ResourceIndex& resourceIndex)
 {
 	return this->resourceComponents[this->activeFrame].GetCurrentState(
 		resourceIndex);
@@ -279,8 +270,8 @@ inline D3D12_RESOURCE_STATES FrameTexture2DComponent<Frames>::GetCurrentState(
 
 template<FrameType Frames>
 inline void FrameTexture2DComponent<Frames>::ChangeToState(
-	ResourceIndex resourceIndex, std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-	D3D12_RESOURCE_STATES newState)
+	const ResourceIndex& resourceIndex,
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState)
 {
 	auto currentState =
 		this->resourceComponents[this->activeFrame].GetCurrentState(resourceIndex);
@@ -294,7 +285,7 @@ inline void FrameTexture2DComponent<Frames>::ChangeToState(
 
 template<FrameType Frames>
 inline TextureHandle FrameTexture2DComponent<Frames>::GetTextureHandle(
-	ResourceIndex index)
+	const ResourceIndex& index)
 {
 	return this->resourceComponents[this->activeFrame].GetTextureHandle(index);
 }

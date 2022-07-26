@@ -22,14 +22,61 @@ D3D12_RESOURCE_DESC TextureAllocator::CreateTextureDesc(
 	return toReturn;
 }
 
+ResourceIdentifier TextureAllocator::GetAvailableHeapIndex(D3D12_RESOURCE_ALLOCATION_INFO allocationInfo)
+{
+	ResourceIdentifier toReturn;
+
+	for (size_t i = 0; i < memoryChunks.size(); ++i)
+	{
+		toReturn.internalIndex = memoryChunks[i].textures.AllocateChunk(
+			static_cast<size_t>(allocationInfo.SizeInBytes),
+			AllocationStrategy::FIRST_FIT, static_cast<size_t>(allocationInfo.Alignment));
+	
+		if (toReturn.internalIndex != size_t(-1))
+		{
+			toReturn.heapChunkIndex = i;
+			break;
+		}
+	}
+
+	if (toReturn.heapChunkIndex == size_t(-1)) // No fit in existing chunks, need to expand
+	{
+		MemoryChunk newChunk;
+
+		size_t minimumSize = std::max<size_t>(additionalHeapChunksMinimumSize, 
+			allocationInfo.SizeInBytes + allocationInfo.Alignment);
+		newChunk.heapChunk = heapAllocator->AllocateChunk(minimumSize,
+			D3D12_HEAP_TYPE_DEFAULT, memoryChunks[0].heapChunk.heapFlags);
+
+		size_t heapSize = newChunk.heapChunk.endOffset -
+			newChunk.heapChunk.startOffset;
+		newChunk.textures.Initialize(heapSize, newChunk.heapChunk.startOffset);
+		memoryChunks.push_back(std::move(newChunk));
+
+		toReturn.internalIndex = memoryChunks.back().textures.AllocateChunk(
+			static_cast<size_t>(allocationInfo.SizeInBytes),
+			AllocationStrategy::FIRST_FIT, static_cast<size_t>(allocationInfo.Alignment));
+		toReturn.heapChunkIndex = memoryChunks.size() - 1;
+
+		if (toReturn.internalIndex == size_t(-1))
+			throw std::runtime_error("Failed to expand memory in texture allocator");
+	}
+
+	return toReturn;
+}
+
 TextureAllocator::~TextureAllocator()
 {
-	textures.ClearHeap();
+	for (auto& memoryChunk : memoryChunks)
+	{
+		memoryChunk.textures.ClearHeap();
+		heapAllocator->DeallocateChunk(memoryChunk.heapChunk);
+	}
 }
 
 TextureAllocator::TextureAllocator(TextureAllocator&& other) noexcept : 
 	ResourceAllocator(std::move(other)), device(other.device),
-	textures(std::move(other.textures))
+	memoryChunks(std::move(other.memoryChunks))
 {
 	other.device = nullptr;
 }
@@ -41,153 +88,123 @@ TextureAllocator& TextureAllocator::operator=(TextureAllocator&& other) noexcept
 		ResourceAllocator::operator=(std::move(other));
 		device = other.device;
 		other.device = nullptr;
-		textures = std::move(other.textures);
+		memoryChunks = std::move(other.memoryChunks);
 	}
 
 	return *this;
 }
 
 void TextureAllocator::Initialize(ID3D12Device* deviceToUse,
-	const AllowedViews& allowedViews, ID3D12Heap* heap,
-	size_t startOffset, size_t endOffset)
+	const AllowedViews& allowedViews, size_t initialHeapSize,
+	size_t minimumExpansionMemoryRequest, HeapAllocatorGPU* heapAllocatorToUse)
 {
-	ResourceAllocator::Initialize(allowedViews);
+	ResourceAllocator::Initialize(allowedViews, heapAllocatorToUse, 
+		minimumExpansionMemoryRequest);
 	device = deviceToUse;
-	textures.Initialize(endOffset - startOffset);
-	heapData.heapOwned = false;
-	heapData.heap = heap;
-	heapData.startOffset = startOffset;
-	heapData.endOffset = endOffset;
-}
 
-void TextureAllocator::Initialize(ID3D12Device* deviceToUse,
-	const AllowedViews& allowedViews, size_t heapSize)
-{
-	ResourceAllocator::Initialize(allowedViews);
-	device = deviceToUse;
-	textures.Initialize(heapSize);
-	heapData.heapOwned = true;
+	MemoryChunk initialChunk;
+
 	D3D12_HEAP_FLAGS heapFlag = allowedViews.dsv || allowedViews.rtv ?
 		D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES :
 		D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
-	heapData.heap = AllocateHeap(heapSize, false, heapFlag, device);
-	heapData.startOffset = 0;
-	heapData.endOffset = heapSize;
-}
+	initialChunk.heapChunk = heapAllocator->AllocateChunk(
+		initialHeapSize, D3D12_HEAP_TYPE_DEFAULT, heapFlag);
 
-void TextureAllocator::ResizeAllocator(size_t newSize, 
-	ID3D12GraphicsCommandList* list)
-{
-	if (heapData.heapOwned == false)
-		throw std::runtime_error("Illegal attempt to resize non owned heap");
-
-	D3D12_HEAP_FLAGS heapFlag = views.dsv || views.rtv ?
-		D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES :
-		D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
-	auto oldHeap = heapData.heap;
-	heapData.heap = AllocateHeap(newSize, false, heapFlag, device);
-	heapData.endOffset = newSize;
-
-	textures.AddChunk(newSize - textures.TotalSize(), true);
-
-	for (unsigned int i = 0; i < textures.GetCurrentMaxIndex(); ++i)
-	{
-		if (textures.ChunkActive(i))
-		{
-			auto desc = textures[i].resource->GetDesc();
-			const D3D12_CLEAR_VALUE* clearValue = textures[i].clearValue.has_value() ?
-				&textures[i].clearValue.value() : nullptr;
-
-			ID3D12Resource* oldResource = textures[i].resource;
-			textures[i].resource = ResourceAllocator::AllocateResource(desc,
-				textures[i].currentState, clearValue, textures.GetStartOfChunk(i), device);
-
-			if (list != nullptr)
-			{
-				list->CopyResource(textures[i].resource, oldResource);
-				oldResources.push_back(oldResource);
-			}
-			else
-			{
-				oldResource->Release();
-			}
-		}
-	}
-
-	if (list != nullptr)
-		oldHeaps.push_back(oldHeap);
-	else
-		oldHeap->Release();
+	size_t heapSize = initialChunk.heapChunk.endOffset - 
+		initialChunk.heapChunk.startOffset;
+	initialChunk.textures.Initialize(heapSize, initialChunk.heapChunk.startOffset);
+	memoryChunks.push_back(std::move(initialChunk));
 }
 
 void TextureAllocator::ResetAllocator()
 {
-	ResourceAllocator::ClearOldResources();
-	textures.ClearHeap();
+	for (size_t i = 1; i < memoryChunks.size(); ++i)
+	{
+		memoryChunks[i].textures.ClearHeap();
+		heapAllocator->DeallocateChunk(memoryChunks[i].heapChunk);
+	}
+
+	memoryChunks[0].textures.ClearHeap();
+	memoryChunks.resize(1); // Keep initial chunk
 }
 
-size_t TextureAllocator::AllocateTexture(const TextureAllocationInfo& info,
+ResourceIdentifier TextureAllocator::AllocateTexture(const TextureAllocationInfo& info,
 	std::optional<D3D12_RESOURCE_FLAGS> replacementBindings)
 {
 	D3D12_RESOURCE_DESC desc = CreateTextureDesc(info, replacementBindings);
-	auto resourceInfo = device->GetResourceAllocationInfo(0, 1, &desc);
+	auto allocationInfo = device->GetResourceAllocationInfo(0, 1, &desc);
 
-	size_t textureEntryIndex = textures.AllocateChunk(
-		static_cast<size_t>(resourceInfo.SizeInBytes),
-		AllocationStrategy::FIRST_FIT, static_cast<size_t>(resourceInfo.Alignment));
+	ResourceIdentifier toReturn = GetAvailableHeapIndex(allocationInfo);
 
-	if (textureEntryIndex != size_t(-1))
-	{
-		const D3D12_CLEAR_VALUE* clearValue = info.clearValue.has_value() ?
-			&info.clearValue.value() : nullptr;
-		
-		textures[textureEntryIndex].resource = 
-			ResourceAllocator::AllocateResource(desc, D3D12_RESOURCE_STATE_COMMON,
-				clearValue, textures.GetStartOfChunk(textureEntryIndex), device);
-		textures[textureEntryIndex].currentState = D3D12_RESOURCE_STATE_COMMON;
-		textures[textureEntryIndex].dimensions = info.dimensions;
-		textures[textureEntryIndex].texelSize = info.texelSize;
-		textures[textureEntryIndex].clearValue = clearValue != nullptr ?
-			std::make_optional(*clearValue) : std::nullopt;
-	}
+	const D3D12_CLEAR_VALUE* clearValue = info.clearValue.has_value() ?
+		&info.clearValue.value() : nullptr;
+	
+	auto& textureVector = memoryChunks[toReturn.heapChunkIndex].textures;
+	auto& textureEntry = textureVector[toReturn.internalIndex];
 
-	return textureEntryIndex;
-}
-
-void TextureAllocator::DeallocateTexture(size_t index)
-{
-	textures[index].resource->Release();
-	textures[index].resource = nullptr;
-	textures.DeallocateChunk(index);
-}
-
-TextureHandle TextureAllocator::GetHandle(size_t index)
-{
-	TextureHandle toReturn;
-	toReturn.resource = textures[index].resource;
-	toReturn.dimensions = textures[index].dimensions;
+	textureEntry.resource = ResourceAllocator::AllocateResource(
+		memoryChunks[toReturn.heapChunkIndex].heapChunk.heap, desc, D3D12_RESOURCE_STATE_COMMON,
+		clearValue, textureVector.GetStartOfChunk(toReturn.internalIndex), device);
+	textureEntry.currentState = D3D12_RESOURCE_STATE_COMMON;
+	textureEntry.dimensions = info.dimensions;
+	textureEntry.texelSize = info.texelSize;
+	textureEntry.clearValue = clearValue != nullptr ? std::make_optional(*clearValue) : std::nullopt;
 
 	return toReturn;
 }
 
-D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(size_t index)
+void TextureAllocator::DeallocateTexture(const ResourceIdentifier& identifier)
 {
-	return textures[index].currentState;
+	auto& textureVector = memoryChunks[identifier.heapChunkIndex].textures;
+	textureVector[identifier.internalIndex].resource->Release();
+	textureVector[identifier.internalIndex].resource = nullptr;
+	textureVector.DeallocateChunk(identifier.internalIndex);
 }
 
-D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(size_t index,
-	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+TextureHandle TextureAllocator::GetHandle(const ResourceIdentifier& identifier)
 {
+	const auto& textureEntry = 
+		memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex];
+
+	TextureHandle toReturn;
+	toReturn.resource = textureEntry.resource;
+	toReturn.dimensions = textureEntry.dimensions;
+
+	return toReturn;
+}
+
+D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(const ResourceIdentifier& identifier)
+{
+	return memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex].currentState;
+}
+
+//size_t TextureAllocator::GetMaxIndex()
+//{
+//	return textures.GetCurrentMaxIndex();
+//}
+
+//bool TextureAllocator::CheckIfActive(size_t index)
+//{
+//	return textures.ChunkActive(index);
+//}
+
+D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(
+	const ResourceIdentifier& identifier, D3D12_RESOURCE_STATES newState,
+	D3D12_RESOURCE_BARRIER_FLAGS flag)
+{
+	auto& textureEntry = 
+		memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex];
+
 	D3D12_RESOURCE_BARRIER toReturn;
 
 	toReturn.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	toReturn.Flags = flag;
-	toReturn.Transition.pResource = textures[index].resource;
+	toReturn.Transition.pResource = textureEntry.resource;
 	toReturn.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	toReturn.Transition.StateBefore = textures[index].currentState;
+	toReturn.Transition.StateBefore = textureEntry.currentState;
 	toReturn.Transition.StateAfter = newState;
 
-	textures[index].currentState = newState;
+	textureEntry.currentState = newState;
 
 	return toReturn;
 }

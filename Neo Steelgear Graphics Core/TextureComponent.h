@@ -13,11 +13,11 @@ struct TextureComponentInfo
 {
 	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 	std::uint8_t texelSize = 0;
-	ResourceHeapInfo heapInfo;
+	ResourceComponentMemoryInfo memoryInfo;
 
 	TextureComponentInfo(DXGI_FORMAT format, std::uint8_t texelSize,
-		const ResourceHeapInfo& heapInfo) : format(format),
-		texelSize(texelSize), heapInfo(heapInfo)
+		const ResourceComponentMemoryInfo& memoryInfo) : format(format),
+		texelSize(texelSize), memoryInfo(memoryInfo)
 	{
 		// Empty
 	}
@@ -121,21 +121,17 @@ public:
 	void Initialize(ID3D12Device* device, const TextureComponentInfo& textureInfo,
 		const std::vector<DescriptorAllocationInfo<TextureViewDesc>>& descriptorInfo);
 
-	void RemoveComponent(ResourceIndex indexToRemove);
+	void RemoveComponent(const ResourceIndex& indexToRemove) override;
 
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV() const override;
 	bool HasDescriptorsOfType(ViewType type) const override;
 
-	TextureHandle GetTextureHandle(size_t index);
+	TextureHandle GetTextureHandle(const ResourceIndex& resourceIndex);
 
-	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(ResourceIndex index,
+	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIndex& resourceIndex,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 };
@@ -148,20 +144,9 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::InitializeTextureAllocator
 	AllowedViews views{ srv.index != std::uint8_t(-1), uav.index != std::uint8_t(-1),
 		rtv.index != std::uint8_t(-1), dsv.index != std::uint8_t(-1) };
 
-	if (textureInfo.heapInfo.heapType == HeapType::EXTERNAL)
-	{
-		auto& allocationInfo = textureInfo.heapInfo.info.external;
-
-		textureAllocator.Initialize(device, views,
-			allocationInfo.heap, allocationInfo.startOffset,
-			allocationInfo.endOffset);
-	}
-	else
-	{
-		auto& allocationInfo = textureInfo.heapInfo.info.owned;
-
-		textureAllocator.Initialize(device, views, allocationInfo.heapSize);
-	}
+	const auto& memoryInfo = textureInfo.memoryInfo;
+	textureAllocator.Initialize(device, views, memoryInfo.initialMinimumHeapSize,
+		memoryInfo.expansionMinimumSize, memoryInfo.heapAllocator);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
@@ -282,42 +267,38 @@ inline void TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::Initialize(
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline void TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::RemoveComponent(
-	ResourceIndex indexToRemove)
+	const ResourceIndex& indexToRemove)
 {
 	ResourceComponent::RemoveComponent(indexToRemove);
-	textureAllocator.DeallocateTexture(indexToRemove);
+	textureAllocator.DeallocateTexture(indexToRemove.allocatorIdentifier);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset) const
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapSRV() const
 {
-	return descriptorAllocators[srv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[srv.index].GetDescriptorHandle(0);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset) const
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapUAV() const
 {
-	return descriptorAllocators[uav.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[uav.index].GetDescriptorHandle(0);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset) const
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapRTV() const
 {
-	return descriptorAllocators[rtv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[rtv.index].GetDescriptorHandle(0);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapDSV(
-	ResourceIndex indexOffset) const
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetDescriptorHeapDSV() const
 {
-	return descriptorAllocators[dsv.index].GetDescriptorHandle(indexOffset);
+	return descriptorAllocators[dsv.index].GetDescriptorHandle(0);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
@@ -344,16 +325,18 @@ TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::HasDescriptorsOfType(
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline TextureHandle 
-TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetTextureHandle(size_t index)
+TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetTextureHandle(
+	const ResourceIndex& resourceIndex)
 {
-	return textureAllocator.GetHandle(index);
+	return textureAllocator.GetHandle(resourceIndex.allocatorIdentifier);
 }
 
 template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline D3D12_RESOURCE_BARRIER 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::CreateTransitionBarrier(
-	ResourceIndex index, D3D12_RESOURCE_STATES newState,
+	const ResourceIndex& resourceIndex, D3D12_RESOURCE_STATES newState,
 	D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
-	return textureAllocator.CreateTransitionBarrier(index, newState, flag);
+	return textureAllocator.CreateTransitionBarrier(
+		resourceIndex.allocatorIdentifier, newState, flag);
 }

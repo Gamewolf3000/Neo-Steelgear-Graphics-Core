@@ -2,7 +2,8 @@
 
 #include <stdexcept>
 
-ID3D12Resource* BufferAllocator::AllocateResource(size_t size, ID3D12Device* device)
+ID3D12Resource* BufferAllocator::AllocateResource(size_t size, ID3D12Heap* heap,
+	size_t startOffset, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_RESOURCE_DESC desc;
 
@@ -18,18 +19,75 @@ ID3D12Resource* BufferAllocator::AllocateResource(size_t size, ID3D12Device* dev
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	desc.Flags = CreateBindFlag();
 
-	return ResourceAllocator::AllocateResource(desc, currentState, nullptr,
-		heapData.startOffset, device);
+	return ResourceAllocator::AllocateResource(heap, desc, 
+		initialState, nullptr, startOffset, device);
+}
+
+ResourceIdentifier BufferAllocator::GetAvailableHeapIndex(size_t nrOfElements)
+{
+	ResourceIdentifier toReturn;
+
+	for (size_t i = 0; i < memoryChunks.size(); ++i)
+	{
+		toReturn.internalIndex = memoryChunks[i].buffers.AllocateChunk(
+			nrOfElements * bufferInfo.elementSize, AllocationStrategy::FIRST_FIT,
+			bufferInfo.alignment);
+
+		if (toReturn.internalIndex != size_t(-1))
+		{
+			toReturn.heapChunkIndex = i;
+			break;
+		}
+	}
+
+	if (toReturn.heapChunkIndex == size_t(-1)) // No fit in existing chunks, need to expand
+	{
+		MemoryChunk newChunk;
+		size_t minimumSize = std::max<size_t>(additionalHeapChunksMinimumSize,
+			nrOfElements * bufferInfo.elementSize);
+		newChunk.heapChunk = heapAllocator->AllocateChunk(minimumSize,
+			memoryChunks[0].heapChunk.heapType, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
+
+		size_t heapSize = newChunk.heapChunk.endOffset - newChunk.heapChunk.startOffset;
+		newChunk.buffers.Initialize(heapSize, newChunk.heapChunk.startOffset);
+
+		D3D12_RESOURCE_STATES initialState = 
+			memoryChunks[0].heapChunk.heapType == D3D12_HEAP_TYPE_UPLOAD ?
+			D3D12_RESOURCE_STATE_GENERIC_READ : D3D12_RESOURCE_STATE_COMMON;
+		newChunk.currentState = initialState;
+
+		newChunk.resource = AllocateResource(heapSize, newChunk.heapChunk.heap,
+			newChunk.heapChunk.startOffset, initialState);
+
+		if (initialState == D3D12_RESOURCE_STATE_GENERIC_READ)
+		{
+			D3D12_RANGE nothing = { 0, 0 }; // We only write, we do not read
+			HRESULT hr = newChunk.resource->Map(0, &nothing,
+				reinterpret_cast<void**>(&newChunk.mappedStart));
+			if (FAILED(hr))
+				throw std::runtime_error("Could not map allocated buffer");
+		}
+
+		memoryChunks.push_back(std::move(newChunk));
+
+		toReturn.internalIndex = memoryChunks.back().buffers.AllocateChunk(
+			nrOfElements * bufferInfo.elementSize, AllocationStrategy::FIRST_FIT,
+			bufferInfo.alignment);
+		toReturn.heapChunkIndex = memoryChunks.size() - 1;
+
+		if (toReturn.internalIndex == size_t(-1))
+			throw std::runtime_error("Failed to expand memory in buffer allocator");
+	}
+
+	return toReturn;
 }
 
 BufferAllocator::BufferAllocator(BufferAllocator&& other) noexcept :
-	ResourceAllocator(std::move(other)), resource(std::move(other.resource)),
-	mappedStart(other.mappedStart), bufferInfo(other.bufferInfo),
-	buffers(std::move(other.buffers)), currentState(other.currentState)
+	ResourceAllocator(std::move(other)), device(other.device),
+	memoryChunks(std::move(other.memoryChunks)), bufferInfo(other.bufferInfo)
 {
-	other.mappedStart = nullptr;
+	other.device = nullptr;
 	other.bufferInfo = BufferInfo();
-	other.currentState = D3D12_RESOURCE_STATE_COMMON;
 }
 
 BufferAllocator& BufferAllocator::operator=(BufferAllocator&& other) noexcept
@@ -37,117 +95,110 @@ BufferAllocator& BufferAllocator::operator=(BufferAllocator&& other) noexcept
 	if (this != &other)
 	{
 		ResourceAllocator::operator=(std::move(other));
-		resource = std::move(other.resource);
-		mappedStart = other.mappedStart;
-		other.mappedStart = nullptr;
+		device = other.device;
+		other.device = nullptr;
+		memoryChunks = std::move(other.memoryChunks);
 		bufferInfo = std::move(other.bufferInfo);
 		other.bufferInfo = BufferInfo();
-		buffers = std::move(other.buffers);
-		currentState = other.currentState;
-		other.currentState = D3D12_RESOURCE_STATE_COMMON;
 	}
 
 	return *this;
 }
 
-void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse,
-	ID3D12Device* device, bool mappedUpdateable,
-	const AllowedViews& allowedViews, ID3D12Heap* heap, size_t startOffset,
-	size_t endOffset)
+void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse, 
+	ID3D12Device* deviceToUse, bool mappedUpdateable, 
+	const AllowedViews& allowedViews, size_t initialHeapSize,
+	size_t minimumExpansionMemoryRequest, HeapAllocatorGPU* heapAllocatorToUse)
 {
-	ResourceAllocator::Initialize(allowedViews);
-	bufferInfo = bufferInfoToUse;
-	bufferInfo.elementSize = ((bufferInfo.elementSize +
-		(bufferInfo.alignment - 1)) & ~(bufferInfo.alignment - 1));
-	buffers.Initialize(endOffset - startOffset);
-	currentState = D3D12_RESOURCE_STATE_COMMON;
-	heapData.heapOwned = false;
-	heapData.heap = heap;
-	heapData.startOffset = startOffset;
-	heapData.endOffset = endOffset;
-	resource = AllocateResource(endOffset - startOffset, device);
-
-	if (mappedUpdateable)
-	{
-		D3D12_RANGE nothing = { 0, 0 }; // We only write, we do not read
-		HRESULT hr = resource->Map(0, &nothing, reinterpret_cast<void**>(&mappedStart));
-		if (FAILED(hr))
-			throw std::runtime_error("Could not map allocated buffer");
-	}
-}
-
-void BufferAllocator::Initialize(const BufferInfo& bufferInfoToUse,
-	ID3D12Device* device, bool mappedUpdateable,
-	const AllowedViews& allowedViews, size_t heapSize)
-{
-	ResourceAllocator::Initialize(allowedViews);
+	ResourceAllocator::Initialize(allowedViews, heapAllocatorToUse,
+		minimumExpansionMemoryRequest);
 	bufferInfo = bufferInfoToUse;
 	bufferInfo.elementSize = ((bufferInfo.elementSize + 
 		(bufferInfo.alignment - 1)) & ~(bufferInfo.alignment - 1));
-	buffers.Initialize(heapSize);
-	currentState = mappedUpdateable ? D3D12_RESOURCE_STATE_GENERIC_READ :
-		D3D12_RESOURCE_STATE_COMMON;
-	heapData.heapOwned = true;
-	heapData.heap = AllocateHeap(heapSize, mappedUpdateable, 
-		D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS, device);
-	heapData.startOffset = 0;
-	heapData.endOffset = heapSize;
-	resource = AllocateResource(heapSize, device);
+	device = deviceToUse;
 
-	if (mappedUpdateable)
+	MemoryChunk initialChunk;
+	initialChunk.heapChunk = heapAllocator->AllocateChunk(initialHeapSize,
+		mappedUpdateable ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
+	
+	size_t heapSize = initialChunk.heapChunk.endOffset -
+		initialChunk.heapChunk.startOffset;
+	initialChunk.buffers.Initialize(heapSize, initialChunk.heapChunk.startOffset);
+
+	D3D12_RESOURCE_STATES initialState = mappedUpdateable ? 
+		D3D12_RESOURCE_STATE_GENERIC_READ : D3D12_RESOURCE_STATE_COMMON;
+	initialChunk.currentState = initialState;
+
+	initialChunk.resource = AllocateResource(heapSize, initialChunk.heapChunk.heap,
+		initialChunk.heapChunk.startOffset, initialState);
+
+	if (initialState == D3D12_RESOURCE_STATE_GENERIC_READ)
 	{
 		D3D12_RANGE nothing = { 0, 0 }; // We only write, we do not read
-		HRESULT hr = resource->Map(0, &nothing, reinterpret_cast<void**>(&mappedStart));
+		HRESULT hr = initialChunk.resource->Map(0, &nothing, 
+			reinterpret_cast<void**>(&initialChunk.mappedStart));
 		if (FAILED(hr))
 			throw std::runtime_error("Could not map allocated buffer");
 	}
+
+	memoryChunks.push_back(std::move(initialChunk));
 }
 
-size_t BufferAllocator::AllocateBuffer(size_t nrOfElements)
+ResourceIdentifier BufferAllocator::AllocateBuffer(size_t nrOfElements)
 {
-	size_t bufferEntryIndex = buffers.AllocateChunk(
-		bufferInfo.elementSize * nrOfElements,
-		AllocationStrategy::FIRST_FIT, bufferInfo.alignment);
+	ResourceIdentifier toReturn = GetAvailableHeapIndex(nrOfElements);
 
-	if (bufferEntryIndex != size_t(-1))
-		buffers[bufferEntryIndex].nrOfElements = nrOfElements;
-
-	return bufferEntryIndex;
-}
-
-void BufferAllocator::DeallocateBuffer(size_t index)
-{
-	buffers.DeallocateChunk(index);
-}
-
-D3D12_RESOURCE_BARRIER BufferAllocator::CreateTransitionBarrier(
-	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
-{
-	D3D12_RESOURCE_BARRIER toReturn;
-
-	toReturn.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	toReturn.Flags = flag;
-	toReturn.Transition.pResource = resource;
-	toReturn.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	toReturn.Transition.StateBefore = currentState;
-	toReturn.Transition.StateAfter = newState;
-
-	currentState = newState;
+	auto& bufferVector = memoryChunks[toReturn.heapChunkIndex].buffers;
+	bufferVector[toReturn.internalIndex].nrOfElements = nrOfElements;
 
 	return toReturn;
 }
 
-unsigned char* BufferAllocator::GetMappedPtr()
+void BufferAllocator::DeallocateBuffer(const ResourceIdentifier& identifier)
 {
-	return mappedStart;
+	auto& bufferVector = memoryChunks[identifier.heapChunkIndex].buffers;
+	bufferVector.DeallocateChunk(identifier.internalIndex);
 }
 
-BufferHandle BufferAllocator::GetHandle(size_t index)
+void BufferAllocator::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
+	for (auto& memoryChunk : memoryChunks)
+	{
+		D3D12_RESOURCE_BARRIER toAdd;
+
+		toAdd.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		toAdd.Flags = flag;
+		toAdd.Transition.pResource = memoryChunk.resource;
+		toAdd.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		toAdd.Transition.StateBefore = memoryChunk.currentState;
+		toAdd.Transition.StateAfter = newState;
+
+		memoryChunk.currentState = newState;
+		barriers.push_back(toAdd);
+	}
+}
+
+unsigned char* BufferAllocator::GetMappedPtr(const ResourceIdentifier& identifier)
+{
+	auto& memoryChunk = memoryChunks[identifier.heapChunkIndex];
+	auto toReturn = memoryChunk.mappedStart;
+
+	for (size_t i = 0; i < identifier.internalIndex; ++i)
+		toReturn += memoryChunk.buffers[i].nrOfElements * bufferInfo.elementSize;
+
+	return toReturn;
+}
+
+BufferHandle BufferAllocator::GetHandle(const ResourceIdentifier& identifier)
+{
+	auto& memoryChunk = memoryChunks[identifier.heapChunkIndex];
+
 	BufferHandle toReturn;
-	toReturn.resource = resource;
-	toReturn.startOffset = buffers.GetStartOfChunk(index);
-	toReturn.nrOfElements = buffers[index].nrOfElements;
+	toReturn.resource = memoryChunk.resource;
+	toReturn.startOffset = memoryChunk.buffers.GetStartOfChunk(identifier.internalIndex);
+	toReturn.nrOfElements = memoryChunk.buffers[identifier.internalIndex].nrOfElements;
 
 	return toReturn;
 }
@@ -164,12 +215,15 @@ size_t BufferAllocator::GetElementAlignment()
 
 D3D12_RESOURCE_STATES BufferAllocator::GetCurrentState()
 {
-	return currentState;
+	return memoryChunks[0].currentState;
 }
 
-void BufferAllocator::UpdateMappedBuffer(size_t index, void* data)
+void BufferAllocator::UpdateMappedBuffer(const ResourceIdentifier& identifier, void* data)
 {
-	auto& entry = buffers[index];
-	void* resourceStart = mappedStart + buffers.GetStartOfChunk(index);
-	memcpy(resourceStart, data, bufferInfo.elementSize * entry.nrOfElements);
+	auto& memoryChunk = memoryChunks[identifier.heapChunkIndex];
+	void* resourceStart = memoryChunk.mappedStart + 
+		memoryChunk.buffers.GetStartOfChunk(identifier.internalIndex);
+
+	auto& bufferEntry = memoryChunk.buffers[identifier.internalIndex];
+	memcpy(resourceStart, data, bufferInfo.elementSize * bufferEntry.nrOfElements);
 }

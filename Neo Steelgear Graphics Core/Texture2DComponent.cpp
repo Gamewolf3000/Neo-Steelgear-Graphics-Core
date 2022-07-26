@@ -124,8 +124,9 @@ bool Texture2DComponent::CreateViews(
 	{
 		auto desc = CreateSRV(replacements.sr != std::nullopt ? *replacements.sr :
 			srv.desc, handle);
-		if (descriptorAllocators[srv.index].AllocateSRV(
-			handle.resource, &desc, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[srv.index].AllocateSRV(
+			handle.resource, &desc, resourceIndex.descriptorIndex);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -135,9 +136,9 @@ bool Texture2DComponent::CreateViews(
 	{
 		auto desc = CreateUAV(replacements.ua != std::nullopt ? *replacements.ua :
 			uav.desc, handle);
-
-		if (descriptorAllocators[uav.index].AllocateUAV(
-			handle.resource, &desc, nullptr, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[uav.index].AllocateUAV(
+			handle.resource, &desc, nullptr, resourceIndex.descriptorIndex);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -147,8 +148,9 @@ bool Texture2DComponent::CreateViews(
 	{
 		auto desc = CreateRTV(replacements.rt != std::nullopt ? *replacements.rt :
 			rtv.desc, handle);
-		if (descriptorAllocators[rtv.index].AllocateRTV(
-			handle.resource, &desc, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[rtv.index].AllocateRTV(
+			handle.resource, &desc, resourceIndex.descriptorIndex);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -158,8 +160,9 @@ bool Texture2DComponent::CreateViews(
 	{
 		auto desc = CreateDSV(replacements.ds != std::nullopt ? *replacements.ds :
 			dsv.desc, handle);
-		if (descriptorAllocators[dsv.index].AllocateDSV(
-			handle.resource, &desc, resourceIndex) == size_t(-1))
+		resourceIndex.descriptorIndex = descriptorAllocators[dsv.index].AllocateDSV(
+			handle.resource, &desc, resourceIndex.descriptorIndex);
+		if (resourceIndex.descriptorIndex == size_t(-1))
 		{
 			return false;
 		}
@@ -171,13 +174,15 @@ bool Texture2DComponent::CreateViews(
 Texture2DComponent::Texture2DComponent(Texture2DComponent&& other) noexcept : 
 	TextureComponent(std::move(other))
 {
-	// Empty
+	//EMPTY
 }
 
 Texture2DComponent& Texture2DComponent::operator=(Texture2DComponent&& other) noexcept
 {
 	if (this != &other)
+	{
 		TextureComponent::operator=(std::move(other));
+	}
 
 	return *this;
 }
@@ -199,36 +204,29 @@ ResourceIndex Texture2DComponent::CreateTexture(size_t width, size_t height,
 	TextureAllocationInfo allocationInfo(this->textureFormat, texelSize, width,
 		height, arraySize, mipLevels, sampleCount, sampleQuality, clearValue);
 
-	ResourceIndex toReturn = textureAllocator.AllocateTexture(allocationInfo);
+	ResourceIndex toReturn;
+	toReturn.allocatorIdentifier = textureAllocator.AllocateTexture(allocationInfo);
 
-	if (toReturn == ResourceIndex(-1))
-		return toReturn;
-
-	TextureHandle handle = textureAllocator.GetHandle(toReturn);
+	TextureHandle handle = textureAllocator.GetHandle(toReturn.allocatorIdentifier);
 	if (!CreateViews(replacementViews, handle, toReturn))
 	{
-		textureAllocator.DeallocateTexture(toReturn);
-		return ResourceIndex(-1);
+		textureAllocator.DeallocateTexture(toReturn.allocatorIdentifier);
+		throw std::runtime_error("Cannot create views for texture2D resource");
 	}
 
 	return toReturn;
 }
 
-void Texture2DComponent::RemoveComponent(ResourceIndex indexToRemove)
-{
-	ResourceComponent::RemoveComponent(indexToRemove);
-	textureAllocator.DeallocateTexture(indexToRemove);
-}
-
 D3D12_RESOURCE_STATES Texture2DComponent::GetCurrentState(
-	ResourceIndex resourceIndex)
+	const ResourceIndex& resourceIndex)
 {
-	return textureAllocator.GetCurrentState(resourceIndex);
+	return textureAllocator.GetCurrentState(resourceIndex.allocatorIdentifier);
 }
 
 D3D12_RESOURCE_BARRIER Texture2DComponent::CreateTransitionBarrier(
-	ResourceIndex resourceIndex, D3D12_RESOURCE_STATES newState, 
+	const ResourceIndex& resourceIndex, D3D12_RESOURCE_STATES newState, 
 	D3D12_RESOURCE_BARRIER_FLAGS flag)
 {
-	return textureAllocator.CreateTransitionBarrier(resourceIndex, newState, flag);
+	return textureAllocator.CreateTransitionBarrier(
+		resourceIndex.allocatorIdentifier, newState, flag);
 }

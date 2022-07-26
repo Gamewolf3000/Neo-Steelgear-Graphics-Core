@@ -32,14 +32,23 @@ private:
 		size_t nrOfElements = 0;
 	};
 
-	D3DPtr<ID3D12Resource> resource;
-	unsigned char* mappedStart = nullptr;
+	struct MemoryChunk
+	{
+		HeapChunk heapChunk;
+		HeapHelper<BufferEntry> buffers;
+		D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COMMON;
+		D3DPtr<ID3D12Resource> resource;
+		unsigned char* mappedStart = nullptr;
+	};
 
+	ID3D12Device* device = nullptr;
+	std::vector<MemoryChunk> memoryChunks;
 	BufferInfo bufferInfo;
-	HeapHelper<BufferEntry> buffers;
-	D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COMMON;
 
-	ID3D12Resource* AllocateResource(size_t size, ID3D12Device* device);
+	ID3D12Resource* AllocateResource(size_t size, ID3D12Heap* heap,
+		size_t startOffset, D3D12_RESOURCE_STATES initialState);
+
+	ResourceIdentifier GetAvailableHeapIndex(size_t nrOfElements);
 
 public:
 	BufferAllocator() = default;
@@ -49,24 +58,22 @@ public:
 	BufferAllocator(BufferAllocator&& other) noexcept;
 	BufferAllocator& operator=(BufferAllocator&& other) noexcept;
 
-	void Initialize(const BufferInfo& bufferInfoToUse, ID3D12Device* device,
-		bool mappedUpdateable, const AllowedViews& allowedViews,
-		ID3D12Heap* heap, size_t startOffset, size_t endOffset);
-	void Initialize(const BufferInfo& bufferInfoToUse, ID3D12Device* device,
-		bool mappedUpdateable, const AllowedViews& allowedViews, size_t heapSize);
+	void Initialize(const BufferInfo& bufferInfoToUse, ID3D12Device* deviceToUse,
+		bool mappedUpdateable, const AllowedViews& allowedViews, size_t initialHeapSize,
+		size_t minimumExpansionMemoryRequest, HeapAllocatorGPU* heapAllocatorToUse);
 
-	size_t AllocateBuffer(size_t nrOfElements);
-	void DeallocateBuffer(size_t index);
+	ResourceIdentifier AllocateBuffer(size_t nrOfElements);
+	void DeallocateBuffer(const ResourceIdentifier& identifier);
 
-	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
+	void CreateTransitionBarrier(D3D12_RESOURCE_STATES newState, 
+		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-	unsigned char* GetMappedPtr();
-	BufferHandle GetHandle(size_t index);
+	unsigned char* GetMappedPtr(const ResourceIdentifier& identifier);
+	BufferHandle GetHandle(const ResourceIdentifier& identifier);
 	size_t GetElementSize();
 	size_t GetElementAlignment();
 	D3D12_RESOURCE_STATES GetCurrentState();
 
-	void UpdateMappedBuffer(size_t index, void* data); // Map/Unmap method
-	//size_t DefragResources(ID3D12GraphicsCommandList* list);
+	void UpdateMappedBuffer(const ResourceIdentifier& identifier, void* data); // Map/Unmap method
 };

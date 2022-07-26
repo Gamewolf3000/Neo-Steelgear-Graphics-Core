@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "../Neo Steelgear Graphics Core/FrameBufferComponent.h"
+#include "../Neo Steelgear Graphics Core/MultiHeapAllocatorGPU.h"
 
 #include "D3D12Helper.h"
 
@@ -26,12 +27,14 @@ void InitializationHelper(std::function<void(ID3D12Device*,
 	if (device == nullptr)
 		FAIL() << "Cannot proceed with tests as a device could not be created";
 
+	MultiHeapAllocatorGPU heapAllocator;
+	heapAllocator.Initialize(device);
+
 	std::array<UpdateType, 4> updateTypes = { UpdateType::NONE,
 	UpdateType::INITIALISE_ONLY, UpdateType::MAP_UPDATE, UpdateType::COPY_UPDATE };
 
-	std::vector<AllowedViews> ViewCombinations = { {false, false, false, false},
-		{true, false, false, false}, {false, true, false, false},
-		{true, true, false, false} };
+	std::vector<AllowedViews> ViewCombinations = { {true, false, false, false},
+		{false, true, false, false}, {true, true, false, false} };
 
 	std::array<unsigned int, 6> allocationSizes = { 1, 2, 10, 20, 100, 512};
 	std::array<unsigned int, 6> allocationAmounts = { 1, 2, 10, 20, 50, 128};
@@ -70,9 +73,12 @@ void InitializationHelper(std::function<void(ID3D12Device*,
 								continue; // Not a possible combination
 
 							mapped &= updateType == UpdateType::MAP_UPDATE;
-							ResourceHeapInfo heapInfo(heapSize);
+							ResourceComponentMemoryInfo memoryInfo;
+							memoryInfo.initialMinimumHeapSize = heapSize;
+							memoryInfo.expansionMinimumSize = 0;
+							memoryInfo.heapAllocator = &heapAllocator;
 							BufferComponentInfo componentInfo = { bufferInfo,
-								mapped, heapInfo };
+								mapped, memoryInfo };
 							std::vector<DescriptorAllocationInfo<BufferViewDesc>>
 								descriptorAllocationInfo;
 
@@ -144,7 +150,9 @@ void CreateSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 		for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 		{
 			ResourceIndex index = bufferComponent.CreateBuffer(nrOfElements);
-			ASSERT_EQ(index, ResourceIndex(i));
+			ASSERT_EQ(index.allocatorIdentifier.heapChunkIndex, 0);
+			ASSERT_EQ(index.allocatorIdentifier.internalIndex, i);
+			ASSERT_EQ(index.descriptorIndex, i);
 		}
 
 		size_t stride = ((componentInfo.bufferInfo.elementSize +
@@ -153,11 +161,18 @@ void CreateSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 
 		for (unsigned int frame = 0; frame < frames * 2; ++frame)
 		{
-			auto firstAdress = bufferComponent.GetVirtualAdress(ResourceIndex(0));
+			ResourceIndex startIndex;
+			startIndex.allocatorIdentifier.heapChunkIndex = 0;
+			startIndex.allocatorIdentifier.internalIndex = 0;
+			startIndex.descriptorIndex = 0;
+			auto firstAdress = bufferComponent.GetVirtualAdress(startIndex);
 			
 			for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 			{
-				ResourceIndex index(i);
+				ResourceIndex index;
+				index.allocatorIdentifier.heapChunkIndex = 0;
+				index.allocatorIdentifier.internalIndex = i;
+				index.descriptorIndex = i;
 				auto currentAdress = bufferComponent.GetVirtualAdress(index);
 				ASSERT_EQ(firstAdress + stride * i, currentAdress);
 			}
@@ -194,14 +209,24 @@ void RemoveSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 		for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 		{
 			ResourceIndex index = bufferComponent.CreateBuffer(nrOfElements);
-			ASSERT_EQ(index, ResourceIndex(i));
+			ASSERT_EQ(index.allocatorIdentifier.heapChunkIndex, 0);
+			ASSERT_EQ(index.allocatorIdentifier.internalIndex, i);
+			ASSERT_EQ(index.descriptorIndex, i);
 		}
 
-		auto firstAdress = bufferComponent.GetVirtualAdress(ResourceIndex(0));
+		ResourceIndex startIndex;
+		startIndex.allocatorIdentifier.heapChunkIndex = 0;
+		startIndex.allocatorIdentifier.internalIndex = 0;
+		startIndex.descriptorIndex = 0;
+		auto firstAdress = bufferComponent.GetVirtualAdress(startIndex);
 
 		for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 		{
-			bufferComponent.RemoveComponent(ResourceIndex(i));
+			ResourceIndex index;
+			index.allocatorIdentifier.heapChunkIndex = 0;
+			index.allocatorIdentifier.internalIndex = i;
+			index.descriptorIndex = i;
+			bufferComponent.RemoveComponent(index);
 		}
 
 		std::vector<ResourceIndex> indices;
@@ -209,7 +234,11 @@ void RemoveSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 		for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 		{
 			indices.push_back(bufferComponent.CreateBuffer(nrOfElements));
-			ASSERT_LE(indices.back(), ResourceIndex(nrOfAllocations / nrOfElements));
+			ASSERT_EQ(indices.back().allocatorIdentifier.heapChunkIndex, 0);
+			ASSERT_LE(indices.back().allocatorIdentifier.internalIndex,
+				nrOfAllocations / nrOfElements);
+			ASSERT_LE(indices.back().descriptorIndex,
+				nrOfAllocations / nrOfElements);
 		}
 
 		size_t stride = ((componentInfo.bufferInfo.elementSize +
@@ -285,7 +314,9 @@ void UpdateBuffers(ID3D12Device* device, UpdateType updateType,
 			memset(data + stride * i, static_cast<unsigned char>(i), 
 				componentInfo.bufferInfo.elementSize);
 			ResourceIndex index = bufferComponent.CreateBuffer(nrOfElements);
-			ASSERT_EQ(index, ResourceIndex(i));
+			ASSERT_EQ(index.allocatorIdentifier.heapChunkIndex, 0);
+			ASSERT_EQ(index.allocatorIdentifier.internalIndex, i);
+			ASSERT_EQ(index.descriptorIndex, i);
 			bufferComponent.SetUpdateData(index, data + stride * i);
 		}
 
@@ -304,7 +335,10 @@ void UpdateBuffers(ID3D12Device* device, UpdateType updateType,
 
 			for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 			{
-				ResourceIndex index(i);
+				ResourceIndex index;
+				index.allocatorIdentifier.heapChunkIndex = 0;
+				index.allocatorIdentifier.internalIndex = i;
+				index.descriptorIndex = i;
 				auto handle = bufferComponent.GetBufferHandle(index);
 				commandStructure.list->CopyBufferRegion(readbackBuffer, i * stride,
 					handle.resource, handle.startOffset, stride);

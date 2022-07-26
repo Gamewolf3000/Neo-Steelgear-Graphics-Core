@@ -23,7 +23,7 @@ protected:
 	{
 		size_t startOffset = static_cast<size_t>(-1);
 		unsigned int dataSize = static_cast<unsigned int>(-1);
-		ResourceIndex resourceIndex = ResourceIndex(-1);
+		ResourceIndex resourceIndex;
 		SpecificData specifics = SpecificData();
 	};
 
@@ -47,11 +47,11 @@ public:
 	ComponentData& operator=(ComponentData&& other) = default;
 
 	virtual void Initialize(ID3D12Device* deviceToUse, FrameType totalNrOfFrames, 
-		UpdateType componentUpdateType, unsigned int totalSize);
+		UpdateType componentUpdateType, unsigned int initialSize);
 
-	virtual void RemoveComponent(ResourceIndex resourceIndex) = 0;
+	virtual void RemoveComponent(const ResourceIndex& resourceIndex) = 0;
 
-	void* GetComponentData(ResourceIndex resourceIndex);
+	void* GetComponentData(const ResourceIndex& resourceIndex);
 };
 
 template<typename SpecificData>
@@ -80,34 +80,31 @@ void ComponentData<SpecificData>::UpdateExistingHeaders(size_t indexOfOriginalCh
 template<typename SpecificData>
 void ComponentData<SpecificData>::Initialize(ID3D12Device* deviceToUse, 
 	FrameType totalNrOfFrames, UpdateType componentUpdateType,
-	unsigned int totalSize)
+	unsigned int initialSize)
 {
 	device = deviceToUse;
 	nrOfFrames = totalNrOfFrames;
 	type = componentUpdateType;
 	if (type != UpdateType::INITIALISE_ONLY && type != UpdateType::NONE)
-	{
-		data.resize(totalSize);
-		usedDataSize = totalSize;
-	}
+		data.resize(initialSize);
 }
 
 template<typename SpecificData>
 inline void* ComponentData<SpecificData>::GetComponentData(
-	ResourceIndex resourceIndex)
+	const ResourceIndex& resourceIndex)
 {
 	unsigned char* toReturn = nullptr;
 
 	if (type != UpdateType::INITIALISE_ONLY && type != UpdateType::NONE
-		&& resourceIndex < headers.size())
+		&& resourceIndex.descriptorIndex < headers.size())
 	{
-		toReturn = data.data() + headers[resourceIndex].startOffset;
+		toReturn = data.data() + headers[resourceIndex.descriptorIndex].startOffset;
 	}
 	else
 	{
 		for (auto& header : headers)
 		{
-			if (header.resourceIndex == resourceIndex)
+			if (header.resourceIndex.descriptorIndex == resourceIndex.descriptorIndex)
 			{
 				toReturn = data.data() + header.startOffset;
 				break;

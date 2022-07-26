@@ -56,8 +56,8 @@ public:
 	HeapHelper(HeapHelper&& other);
 	HeapHelper& operator=(HeapHelper&& other);
 
-	void Initialize(size_t heapSize);
-	void Initialize(size_t heapSize, const T& specifics);
+	void Initialize(size_t heapSize, size_t heapStartOffset = 0);
+	void Initialize(size_t heapSize, const T& specifics, size_t heapStartOffset = 0);
 
 	size_t AllocateChunk(size_t chunkSize, AllocationStrategy strategy,
 		size_t alignment);
@@ -295,10 +295,10 @@ inline HeapHelper<T>& HeapHelper<T>::operator=(HeapHelper&& other)
 }
 
 template<typename T>
-inline void HeapHelper<T>::Initialize(size_t heapSize)
+inline void HeapHelper<T>::Initialize(size_t heapSize, size_t heapStartOffset)
 {
 	Chunk initialChunk;
-	initialChunk.startOffset = 0;
+	initialChunk.startOffset = heapStartOffset;
 	initialChunk.chunkSize = heapSize;
 	initialChunk.specificData = T();
 	currentSize = heapSize;
@@ -306,10 +306,11 @@ inline void HeapHelper<T>::Initialize(size_t heapSize)
 }
 
 template<typename T>
-inline void HeapHelper<T>::Initialize(size_t heapSize, const T& specifics)
+inline void HeapHelper<T>::Initialize(size_t heapSize, const T& specifics,
+	size_t heapStartOffset)
 {
 	Chunk initialChunk;
-	initialChunk.startOffset = 0;
+	initialChunk.startOffset = heapStartOffset;
 	initialChunk.chunkSize = heapSize;
 	initialChunk.specificData = specifics;
 	currentSize = heapSize;

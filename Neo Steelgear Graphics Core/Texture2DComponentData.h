@@ -47,12 +47,12 @@ public:
 	Texture2DComponentData& operator=(Texture2DComponentData&& other) = default;
 
 	virtual void Initialize(ID3D12Device* deviceToUse, FrameType totalNrOfFrames,
-		UpdateType componentUpdateType, unsigned int totalSize) override;
+		UpdateType componentUpdateType, unsigned int initialSize) override;
 
-	void AddComponent(ResourceIndex resourceIndex, unsigned int dataSize,
+	void AddComponent(const ResourceIndex& resourceIndex, unsigned int dataSize,
 		ID3D12Resource* resource);
-	void RemoveComponent(ResourceIndex resourceIndex) override;
-	void UpdateComponentData(ResourceIndex resourceIndex, void* dataPtr,
+	void RemoveComponent(const ResourceIndex& resourceIndex) override;
+	void UpdateComponentData(const ResourceIndex& resourceIndex, void* dataPtr,
 		std::uint8_t texelSizeInBytes, std::uint8_t subresource = 0);
 
 	void PrepareUpdates(std::vector<D3D12_RESOURCE_BARRIER>& barriers,

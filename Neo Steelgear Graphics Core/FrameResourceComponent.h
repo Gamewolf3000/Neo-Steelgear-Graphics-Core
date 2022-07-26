@@ -46,7 +46,9 @@ protected:
 	};
 
 	std::vector<StoredLifetimeOperation> storedLifetimeOperations;
+	std::vector<D3D12_RESOURCE_BARRIER> initializationBarriers;
 
+	void AddInitializationBarrier(ID3D12Resource* resource);
 	virtual void HandleStoredOperations() = 0;
 
 public:
@@ -60,18 +62,15 @@ public:
 	template<typename... InitialisationArguments>
 	void Initialize(InitialisationArguments... initialisationArguments);
 
-	void RemoveComponent(ResourceIndex indexToRemove) override;
+	void RemoveComponent(const ResourceIndex& indexToRemove) override;
 
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV(
-		ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV(
-		ResourceIndex indexOffset = 0) const override;
+	void GetInitializationBarriers(std::vector<D3D12_RESOURCE_BARRIER>& toAddTo);
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapDSV() const override;
 
 	bool HasDescriptorsOfType(ViewType type) const override;
 
@@ -79,6 +78,20 @@ public:
 
 	void SwapFrame() override;
 };
+
+template<typename Component, FrameType Frames, typename CreationOperation>
+inline void 
+FrameResourceComponent<Component, Frames, CreationOperation>::AddInitializationBarrier(
+	ID3D12Resource* resource)
+{
+	D3D12_RESOURCE_BARRIER toAdd;
+	toAdd.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	toAdd.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+	toAdd.Aliasing.pResourceAfter = resource;
+	toAdd.Aliasing.pResourceBefore = nullptr;
+
+	initializationBarriers.push_back(toAdd);
+}
 
 template<typename Component, FrameType Frames, typename CreationOperation>
 template<typename ...InitialisationArguments>
@@ -120,7 +133,7 @@ FrameResourceComponent<Component, Frames, CreationOperation>::operator=(
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline void 
 FrameResourceComponent<Component, Frames, CreationOperation>::RemoveComponent(
-	ResourceIndex indexToRemove)
+	const ResourceIndex& indexToRemove)
 {
 	resourceComponents[this->activeFrame].RemoveComponent(indexToRemove);
 
@@ -135,43 +148,48 @@ FrameResourceComponent<Component, Frames, CreationOperation>::RemoveComponent(
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
-inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapCBV(
-	ResourceIndex indexOffset) const
+inline void 
+FrameResourceComponent<Component, Frames, CreationOperation>::GetInitializationBarriers(
+	std::vector<D3D12_RESOURCE_BARRIER>& toAddTo)
 {
-	return resourceComponents[this->activeFrame].GetDescriptorHeapCBV(indexOffset);
+	toAddTo.insert(toAddTo.end(), initializationBarriers.begin(),
+		initializationBarriers.end());
+	initializationBarriers.clear();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapSRV(
-	ResourceIndex indexOffset) const
+FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapCBV() const
 {
-	return resourceComponents[this->activeFrame].GetDescriptorHeapSRV(indexOffset);
+	return resourceComponents[this->activeFrame].GetDescriptorHeapCBV();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapUAV(
-	ResourceIndex indexOffset) const
+FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapSRV() const
 {
-	return resourceComponents[this->activeFrame].GetDescriptorHeapUAV(indexOffset);
+	return resourceComponents[this->activeFrame].GetDescriptorHeapSRV();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapRTV(
-	ResourceIndex indexOffset) const
+FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapUAV() const
 {
-	return resourceComponents[this->activeFrame].GetDescriptorHeapRTV(indexOffset);
+	return resourceComponents[this->activeFrame].GetDescriptorHeapUAV();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>
 inline const D3D12_CPU_DESCRIPTOR_HANDLE 
-FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapDSV(
-	ResourceIndex indexOffset) const
+FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapRTV() const
 {
-	return resourceComponents[this->activeFrame].GetDescriptorHeapDSV(indexOffset);
+	return resourceComponents[this->activeFrame].GetDescriptorHeapRTV();
+}
+
+template<typename Component, FrameType Frames, typename CreationOperation>
+inline const D3D12_CPU_DESCRIPTOR_HANDLE 
+FrameResourceComponent<Component, Frames, CreationOperation>::GetDescriptorHeapDSV() const
+{
+	return resourceComponents[this->activeFrame].GetDescriptorHeapDSV();
 }
 
 template<typename Component, FrameType Frames, typename CreationOperation>

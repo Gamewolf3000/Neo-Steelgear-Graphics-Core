@@ -158,8 +158,11 @@
     <ClCompile Include="BufferAllocator.cpp" />
     <ClCompile Include="BufferComponent.cpp" />
     <ClCompile Include="BufferComponentData.cpp" />
+    <ClCompile Include="InternalBufferComponentData.cpp" />
     <ClCompile Include="ComponentData.cpp" />
     <ClCompile Include="DescriptorAllocator.cpp" />
+    <ClCompile Include="HeapAllocatorGPU.cpp" />
+    <ClCompile Include="MultiHeapAllocatorGPU.cpp" />
     <ClCompile Include="ResourceAllocator.cpp" />
     <ClCompile Include="ResourceComponent.cpp" />
     <ClCompile Include="ResourceUploader.cpp" />
@@ -170,6 +173,7 @@
   <ItemGroup>
     <ClInclude Include="BufferAllocator.h" />
     <ClInclude Include="BufferComponent.h" />
+    <ClInclude Include="InternalBufferComponentData.h" />
     <ClInclude Include="BufferComponentData.h" />
     <ClInclude Include="ComponentData.h" />
     <ClInclude Include="D3DPtr.h" />
@@ -179,7 +183,9 @@
     <ClInclude Include="FrameObject.h" />
     <ClInclude Include="FrameResourceComponent.h" />
     <ClInclude Include="FrameTexture2DComponent.h" />
+    <ClInclude Include="HeapAllocatorGPU.h" />
     <ClInclude Include="HeapHelper.h" />
+    <ClInclude Include="MultiHeapAllocatorGPU.h" />
     <ClInclude Include="ResourceAllocator.h" />
     <ClInclude Include="ResourceComponent.h" />
     <ClInclude Include="ResourceUploader.h" />

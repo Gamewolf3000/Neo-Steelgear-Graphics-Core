@@ -52,7 +52,6 @@ struct TextureHandle
 class TextureAllocator : public ResourceAllocator
 {
 private:
-
 	struct TextureEntry
 	{
 		ID3D12Resource* resource = nullptr;
@@ -106,11 +105,19 @@ private:
 		}
 	};
 
+	struct MemoryChunk
+	{
+		HeapChunk heapChunk;
+		HeapHelper<TextureEntry> textures;
+	};
+
 	ID3D12Device* device = nullptr;
-	HeapHelper<TextureEntry> textures;
+	std::vector<MemoryChunk> memoryChunks;
 
 	D3D12_RESOURCE_DESC CreateTextureDesc(const TextureAllocationInfo& info,
 		std::optional<D3D12_RESOURCE_FLAGS> replacementBindings);
+
+	ResourceIdentifier GetAvailableHeapIndex(D3D12_RESOURCE_ALLOCATION_INFO allocationInfo);
 
 public:
 	TextureAllocator() = default;
@@ -121,23 +128,23 @@ public:
 	TextureAllocator& operator=(TextureAllocator&& other) noexcept;
 
 	void Initialize(ID3D12Device* deviceToUse,
-		const AllowedViews& allowedViews, ID3D12Heap* heap,
-		size_t startOffset, size_t endOffset);
-	void Initialize(ID3D12Device* deviceToUse,
-		const AllowedViews& allowedViews, size_t heapSize);
+		const AllowedViews& allowedViews, size_t initialHeapSize,
+		size_t minimumExpansionMemoryRequest, HeapAllocatorGPU* heapAllocatorToUse);
 
-	void ResizeAllocator(size_t newSize, ID3D12GraphicsCommandList* list = nullptr);
 	void ResetAllocator();
 
-	size_t AllocateTexture(const TextureAllocationInfo& info, 
+	ResourceIdentifier AllocateTexture(const TextureAllocationInfo& info,
 		std::optional<D3D12_RESOURCE_FLAGS> replacementBindings = std::nullopt);
 
-	void DeallocateTexture(size_t index);
+	void DeallocateTexture(const ResourceIdentifier& identifier);
 
-	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(size_t index,
+	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIdentifier& identifier,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-	TextureHandle GetHandle(size_t index);
-	D3D12_RESOURCE_STATES GetCurrentState(size_t index);
+	TextureHandle GetHandle(const ResourceIdentifier& identifier);
+	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIdentifier& identifier);
+
+	//size_t GetMaxIndex();
+	//bool CheckIfActive(size_t index);
 };

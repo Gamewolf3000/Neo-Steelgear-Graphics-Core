@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "../Neo Steelgear Graphics Core/BufferComponent.h"
+#include "../Neo Steelgear Graphics Core/MultiHeapAllocatorGPU.h"
 
 #include "D3D12Helper.h"
 
@@ -21,6 +22,9 @@ void InitializationWrapper(std::function<void(ID3D12Device*, BufferComponentInfo
 	if (device == nullptr)
 		FAIL() << "Cannot proceed with tests as a device could not be created";
 
+	MultiHeapAllocatorGPU heapAllocator;
+	heapAllocator.Initialize(device);
+
 	UINT shaderBindableSize = device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	UINT rtvSize = device->GetDescriptorHandleIncrementSize(
@@ -29,9 +33,8 @@ void InitializationWrapper(std::function<void(ID3D12Device*, BufferComponentInfo
 	std::vector<BufferInfo> bufferInfos = { {1, 1}, {1, 32}, {2, 2}, {16, 16},
 		{4, 8}, {64, 64}, {32, 128}, {2, 256}, {4, 4}, {8, 32}, {1024, 4096} };
 
-	std::vector<AllowedViews> ViewCombinations = { {false, false, false, false},
-		{true, false, false, false}, {false, true, false, false},
-		{true, true, false, false} };
+	std::vector<AllowedViews> ViewCombinations = { {true, false, false, false},
+		{false, true, false, false}, {true, true, false, false} };
 
 	for (unsigned int bufferMultiplier = 1; bufferMultiplier < 11;
 		bufferMultiplier++)
@@ -41,9 +44,12 @@ void InitializationWrapper(std::function<void(ID3D12Device*, BufferComponentInfo
 			for (auto& bufferInfo : bufferInfos)
 			{
 				bool mapped = !(allowedViews.rtv || allowedViews.uav);
-				ResourceHeapInfo heapInfo(64 * 1024 * bufferMultiplier);
+				ResourceComponentMemoryInfo memoryInfo;
+				memoryInfo.initialMinimumHeapSize = 64 * 1024 * bufferMultiplier;
+				memoryInfo.expansionMinimumSize = 64 * 1024;
+				memoryInfo.heapAllocator = &heapAllocator;
 				BufferComponentInfo componentInfo = { bufferInfo, mapped,
-					heapInfo };
+					memoryInfo };
 				std::vector<DescriptorAllocationInfo<BufferViewDesc>>
 					descriptorAllocationInfo;
 
@@ -95,6 +101,10 @@ TEST(BufferComponentTest, CorrectlyCreatesSimpleBuffers)
 		AllowedViews& views, BufferInfo& info, size_t maxAllocations)
 	{
 		std::array<size_t, 7> elementsPerAllocation = { 1, 2, 4, 8, 16, 32, 64 };
+		ResourceIndex startIndex;
+		startIndex.allocatorIdentifier.heapChunkIndex = 0;
+		startIndex.allocatorIdentifier.internalIndex = 0;
+		startIndex.descriptorIndex = 0;
 
 		for (auto& nrOfElements : elementsPerAllocation)
 		{
@@ -103,9 +113,12 @@ TEST(BufferComponentTest, CorrectlyCreatesSimpleBuffers)
 
 			for (unsigned int i = 0; i < maxAllocations / nrOfElements; ++i)
 			{
-				ASSERT_EQ(component.CreateBuffer(nrOfElements), ResourceIndex(i));
-				auto start = component.GetBufferHandle(0);
-				auto current = component.GetBufferHandle(i);
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.heapChunkIndex, 0);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.internalIndex, i);
+				ASSERT_EQ(currentIndex.descriptorIndex, i);
+				auto start = component.GetBufferHandle(startIndex);
+				auto current = component.GetBufferHandle(currentIndex);
 				ASSERT_EQ(start.startOffset + i * nrOfElements * info.elementSize,
 					current.startOffset);
 			}
@@ -130,18 +143,28 @@ TEST(BufferComponentTest, CorrectlyRemovesSimpleBuffers)
 
 			for (unsigned int i = 0; i < maxAllocations / nrOfElements; ++i)
 			{
-				ASSERT_EQ(component.CreateBuffer(nrOfElements), ResourceIndex(i));
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.heapChunkIndex, 0);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.internalIndex, i);
+				ASSERT_EQ(currentIndex.descriptorIndex, i);
 			}
 
 			for (unsigned int i = 0; i < maxAllocations / nrOfElements; ++i)
 			{
-				component.RemoveComponent(ResourceIndex(i));
+				ResourceIndex indexToRemove;
+				indexToRemove.allocatorIdentifier.heapChunkIndex = 0;
+				indexToRemove.allocatorIdentifier.internalIndex = i;
+				indexToRemove.descriptorIndex = i;
+				component.RemoveComponent(indexToRemove);
 			}
 
-			ResourceIndex maxIndex(maxAllocations / nrOfElements);
+			size_t maxIndex(maxAllocations / nrOfElements);
 			for (unsigned int i = 0; i < maxAllocations / nrOfElements; ++i)
 			{
-				ASSERT_LE(component.CreateBuffer(nrOfElements), maxIndex);
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.heapChunkIndex, 0);
+				ASSERT_LE(currentIndex.allocatorIdentifier.internalIndex, maxIndex);
+				ASSERT_LE(currentIndex.descriptorIndex, maxIndex);
 			}
 		}
 	};
@@ -189,8 +212,11 @@ TEST(BufferComponentTest, CorrectlyUpdatesMappedBuffers)
 			{
 				void* currentDataStart = data + i * bufferSize;
 				memset(currentDataStart, static_cast<unsigned char>(i), bufferSize);
-				ASSERT_EQ(component.CreateBuffer(nrOfElements), ResourceIndex(i));
-				component.UpdateMappedBuffer(ResourceIndex(i), currentDataStart);
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.heapChunkIndex, 0);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.internalIndex, i);
+				ASSERT_EQ(currentIndex.descriptorIndex, i);
+				component.UpdateMappedBuffer(currentIndex, currentDataStart);
 			}
 
 			if (FAILED(commandStructure.allocator->Reset()))
@@ -202,12 +228,152 @@ TEST(BufferComponentTest, CorrectlyUpdatesMappedBuffers)
 				FAIL() << "Cannot proceed with tests since a command allocator could not be reset";
 			}
 
+			ResourceIndex startIndex;
+			startIndex.allocatorIdentifier.heapChunkIndex = 0;
+			startIndex.allocatorIdentifier.internalIndex = 0;
+			startIndex.descriptorIndex = 0;
 			commandStructure.list->CopyBufferRegion(readbackBuffer, 0,
-				component.GetBufferHandle(0).resource, 0, allocationSize);
+				component.GetBufferHandle(startIndex).resource, 0, allocationSize);
 			ExecuteGraphicsCommandList(commandStructure.list, commandStructure.queue);
 			FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
 			CheckResourceData(readbackBuffer, 0, data, 0, 
 				(maxAllocations / nrOfElements) * bufferSize); // All memory might not be touched, ignore untouched memory
+		}
+
+		delete[] data;
+		readbackBuffer->Release();
+		fence->Release();
+	};
+
+	InitializationWrapper(func);
+}
+
+TEST(BufferComponentTest, ExpandsCorrectly)
+{
+	auto func = [](ID3D12Device* device, BufferComponentInfo& componentInfo,
+		std::vector<DescriptorAllocationInfo<BufferViewDesc>>& descriptorAllocationInfo,
+		AllowedViews& views, BufferInfo& info, size_t maxAllocations)
+	{
+		if (!componentInfo.mappedResource || maxAllocations == 1000) //1000 means we have more memory
+			return;
+
+		unsigned int expectedNrOfExpansions = 4;
+		size_t allocationSize = componentInfo.bufferInfo.elementSize *
+			maxAllocations * (expectedNrOfExpansions + 1); // + 1 for original
+		unsigned char* data = new unsigned char[allocationSize];
+
+		SimpleCommandStructure commandStructure;
+		if (!CreateSimpleCommandStructure(commandStructure, device))
+			FAIL() << "Cannot proceed with tests as command structure cannot be created";
+
+		commandStructure.list->Close();
+		ID3D12Resource* readbackBuffer = CreateBuffer(device, allocationSize, true);
+		if (readbackBuffer == nullptr)
+			FAIL() << "Cannot proceed with tests as a resource could not be created";
+
+		size_t currentFenceValue = 0;
+		ID3D12Fence* fence = CreateFence(device, currentFenceValue,
+			D3D12_FENCE_FLAG_NONE);
+		if (fence == nullptr)
+			FAIL() << "Cannot proceed with tests as a fence could not be created";
+
+		std::array<size_t, 7> elementsPerAllocation = { 1, 2, 4, 8, 16, 32, 64 };
+
+		for (auto& nrOfElements : elementsPerAllocation)
+		{
+			if (nrOfElements > maxAllocations)
+				continue;
+
+			BufferComponent component;
+			component.Initialize(device, componentInfo, descriptorAllocationInfo);
+			size_t bufferSize = componentInfo.bufferInfo.elementSize * nrOfElements;
+
+			for (unsigned int i = 0; i < maxAllocations / nrOfElements; ++i)
+			{
+				void* currentDataStart = data + i * bufferSize;
+				memset(currentDataStart, static_cast<unsigned char>(i), bufferSize);
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.heapChunkIndex, 0);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.internalIndex, i);
+				ASSERT_EQ(currentIndex.descriptorIndex, i);
+				component.UpdateMappedBuffer(currentIndex, currentDataStart);
+			}
+
+			unsigned int secondaryOffset = maxAllocations / nrOfElements;
+			size_t currentExpectedInternalIndex = 0;
+			std::vector<std::pair<size_t, size_t>> chunkInfos;
+			chunkInfos.push_back(std::make_pair(1, 0));
+			for (unsigned int i = 0; 
+				i < (maxAllocations / nrOfElements) * expectedNrOfExpansions; ++i)
+			{
+				void* currentDataStart = data + (secondaryOffset + i) * bufferSize;
+				memset(currentDataStart, 
+					static_cast<unsigned char>(i + secondaryOffset), bufferSize);
+				auto currentIndex = component.CreateBuffer(nrOfElements);
+
+				if (chunkInfos.back().first != 
+					currentIndex.allocatorIdentifier.heapChunkIndex)
+				{
+					currentExpectedInternalIndex = 0;
+					chunkInfos.push_back(std::make_pair(chunkInfos.size() + 1, 0));
+				}
+
+				ASSERT_GE(currentIndex.allocatorIdentifier.heapChunkIndex, 1);
+				ASSERT_EQ(currentIndex.allocatorIdentifier.internalIndex, 
+					currentExpectedInternalIndex);
+				ASSERT_EQ(currentIndex.descriptorIndex, i + secondaryOffset);
+				component.UpdateMappedBuffer(currentIndex, currentDataStart);
+
+				++currentExpectedInternalIndex;
+				chunkInfos.back().second += nrOfElements * info.elementSize;
+			}
+
+			if (FAILED(commandStructure.allocator->Reset()))
+				FAIL() << "Cannot proceed with tests since a command allocator could not be reset";
+
+			if (FAILED(commandStructure.list->Reset(
+				commandStructure.allocator, nullptr)))
+			{
+				FAIL() << "Cannot proceed with tests since a command allocator could not be reset";
+			}
+
+			ResourceIndex startIndex;
+			startIndex.allocatorIdentifier.heapChunkIndex = 0;
+			startIndex.allocatorIdentifier.internalIndex = 0;
+			startIndex.descriptorIndex = 0;
+			commandStructure.list->CopyBufferRegion(readbackBuffer, 0,
+				component.GetBufferHandle(startIndex).resource, 0, 
+				allocationSize / (expectedNrOfExpansions + 1));
+			ExecuteGraphicsCommandList(commandStructure.list, commandStructure.queue);
+			FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
+			CheckResourceData(readbackBuffer, 0, data, 0,
+				(maxAllocations / nrOfElements) * bufferSize);
+
+			unsigned char* currentDataStart = data +
+				(maxAllocations / nrOfElements) * bufferSize;
+			for (auto& chunk : chunkInfos)
+			{
+				if (FAILED(commandStructure.allocator->Reset()))
+					FAIL() << "Cannot proceed with tests since a command allocator could not be reset";
+
+				if (FAILED(commandStructure.list->Reset(
+					commandStructure.allocator, nullptr)))
+				{
+					FAIL() << "Cannot proceed with tests since a command allocator could not be reset";
+				}
+
+				ResourceIndex startIndex;
+				startIndex.allocatorIdentifier.heapChunkIndex = chunk.first;
+				startIndex.allocatorIdentifier.internalIndex = 0;
+				startIndex.descriptorIndex = 0;
+				commandStructure.list->CopyBufferRegion(readbackBuffer, 0,
+					component.GetBufferHandle(startIndex).resource, 0, chunk.second);
+				ExecuteGraphicsCommandList(commandStructure.list, commandStructure.queue);
+				FlushCommandQueue(currentFenceValue, commandStructure.queue, fence);
+				CheckResourceData(readbackBuffer, 0, currentDataStart, 0, chunk.second); // All memory might not be touched, ignore untouched memory
+				currentDataStart += chunk.second;
+			}
+
 		}
 
 		delete[] data;

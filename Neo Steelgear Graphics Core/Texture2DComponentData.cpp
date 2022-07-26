@@ -66,35 +66,41 @@ std::uint8_t Texture2DComponentData::CalculateSubresourceCount(
 
 void Texture2DComponentData::Initialize(ID3D12Device* deviceToUse, 
 	FrameType totalNrOfFrames, UpdateType componentUpdateType,
-	unsigned int totalSize)
+	unsigned int initialSize)
 {
 	// Textures cannot be placed in upload heaps
 	if (componentUpdateType == UpdateType::MAP_UPDATE)
 		throw std::runtime_error("Texture2D component data for map update is not possible");
 
 	ComponentData<Texture2DSpecific>::Initialize(deviceToUse, totalNrOfFrames,
-		componentUpdateType, totalSize);
+		componentUpdateType, initialSize);
 }
 
-void Texture2DComponentData::AddComponent(ResourceIndex resourceIndex,
+void Texture2DComponentData::AddComponent(const ResourceIndex& resourceIndex,
 	unsigned int dataSize, ID3D12Resource* resource)
 {
 	if (type == UpdateType::NONE)
 		return;
 
-	std::uint8_t nrOfSubresources = CalculateSubresourceCount(resource);
-	if (type != UpdateType::INITIALISE_ONLY && resourceIndex < headers.size())
+	if (usedDataSize + dataSize > data.capacity())
 	{
-		std::int64_t sizeDifference = dataSize - headers[resourceIndex].dataSize;
-		UpdateExistingHeaders(resourceIndex, sizeDifference);
-		headers[resourceIndex].dataSize = dataSize;
+		data.reserve(usedDataSize + dataSize);
+		data.resize(usedDataSize + dataSize); // Resize so new data fits
+	}
+
+	std::uint8_t nrOfSubresources = CalculateSubresourceCount(resource);
+	if (type != UpdateType::INITIALISE_ONLY && resourceIndex.descriptorIndex < headers.size())
+	{
+		std::int64_t sizeDifference = dataSize - headers[resourceIndex.descriptorIndex].dataSize;
+		UpdateExistingHeaders(resourceIndex.descriptorIndex, sizeDifference);
+		headers[resourceIndex.descriptorIndex].dataSize = dataSize;
 
 		std::int16_t entryDifference = static_cast<std::uint16_t>(
-			nrOfSubresources - headers[resourceIndex].specifics.nrOfSubresources);
-		UpdateExistingSubresourceHeaders(resourceIndex, entryDifference);
-		headers[resourceIndex].specifics.nrOfSubresources = nrOfSubresources;
-		headers[resourceIndex].specifics.needUpdating = false;
-		SetSubresourceHeaders(headers[resourceIndex].specifics.startSubresource,
+			nrOfSubresources - headers[resourceIndex.descriptorIndex].specifics.nrOfSubresources);
+		UpdateExistingSubresourceHeaders(resourceIndex.descriptorIndex, entryDifference);
+		headers[resourceIndex.descriptorIndex].specifics.nrOfSubresources = nrOfSubresources;
+		headers[resourceIndex.descriptorIndex].specifics.needUpdating = false;
+		SetSubresourceHeaders(headers[resourceIndex.descriptorIndex].specifics.startSubresource,
 			nrOfSubresources, resource);
 	}
 	else
@@ -111,21 +117,12 @@ void Texture2DComponentData::AddComponent(ResourceIndex resourceIndex,
 		headers.push_back(toAdd);
 		SetSubresourceHeaders(toAdd.specifics.startSubresource, nrOfSubresources,
 			resource);
-
-		if (type == UpdateType::INITIALISE_ONLY)
-		{
-			if (usedDataSize + dataSize > data.capacity())
-			{
-				data.reserve(usedDataSize + dataSize);
-				data.resize(usedDataSize + dataSize); // Resize so new data fits
-			}
-
-			usedDataSize += dataSize;
-		}
 	}
+
+	usedDataSize += dataSize;
 }
 
-void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
+void Texture2DComponentData::RemoveComponent(const ResourceIndex& resourceIndex)
 {
 	if (type == UpdateType::NONE)
 		return;
@@ -133,20 +130,23 @@ void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
 	if (type != UpdateType::INITIALISE_ONLY)
 	{
 		std::int16_t subresourceDifference = 
-			headers[resourceIndex].specifics.nrOfSubresources;
+			headers[resourceIndex.descriptorIndex].specifics.nrOfSubresources;
 		subresourceDifference = -subresourceDifference;
-		std::int64_t dataDifference = headers[resourceIndex].dataSize;
+		std::int64_t dataDifference = headers[resourceIndex.descriptorIndex].dataSize;
 		dataDifference = -dataDifference;
-		UpdateExistingSubresourceHeaders(resourceIndex, subresourceDifference);
-		UpdateExistingHeaders(resourceIndex, dataDifference);
-		headers[resourceIndex].specifics.nrOfSubresources = 0;
-		headers[resourceIndex].dataSize = 0;
+		UpdateExistingSubresourceHeaders(resourceIndex.descriptorIndex, subresourceDifference);
+		UpdateExistingHeaders(resourceIndex.descriptorIndex, dataDifference);
+		headers[resourceIndex.descriptorIndex].specifics.nrOfSubresources = 0;
+		headers[resourceIndex.descriptorIndex].dataSize = 0;
+		usedDataSize = dataDifference >= 0 ?
+			usedDataSize + static_cast<size_t>(dataDifference) :
+			usedDataSize - static_cast<size_t>(-dataDifference);
 	}
 	else
 	{
 		for (size_t i = 0; i < headers.size(); ++i)
 		{
-			if (headers[i].resourceIndex != resourceIndex)
+			if (headers[i].resourceIndex.descriptorIndex != resourceIndex.descriptorIndex)
 				continue;
 
 			std::int16_t subresourceDifference = 
@@ -160,16 +160,22 @@ void Texture2DComponentData::RemoveComponent(ResourceIndex resourceIndex)
 				usedDataSize + static_cast<size_t>(dataDifference) :
 				usedDataSize - static_cast<size_t>(-dataDifference);
 
+			for (size_t removalCounter = 0;
+				removalCounter < headers[i].specifics.nrOfSubresources;
+				++removalCounter)
+			{
+				subresourceHeaders.pop_back();
+			}
+
 			size_t moveSize = sizeof(DataHeader) * (headers.size() - i - 1);
 			std::memmove(headers.data() + i, headers.data() + i + 1, moveSize);
 			headers.pop_back();
-			subresourceHeaders.pop_back();
 			return;
 		}
 	}
 }
 
-void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
+void Texture2DComponentData::UpdateComponentData(const ResourceIndex& resourceIndex,
 	void* dataPtr, std::uint8_t texelSizeInBytes, std::uint8_t subresource)
 {
 	if (type == UpdateType::NONE)
@@ -177,24 +183,24 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 
 	if (type != UpdateType::INITIALISE_ONLY)
 	{
-		size_t subresourceSlot = headers[resourceIndex].specifics.startSubresource;
+		size_t subresourceSlot = headers[resourceIndex.descriptorIndex].specifics.startSubresource;
 		subresourceSlot += subresource;
 		unsigned char* destination = data.data();
-		destination += headers[resourceIndex].startOffset;
+		destination += headers[resourceIndex.descriptorIndex].startOffset;
 		destination += subresourceHeaders[subresourceSlot].startOffset;
 		size_t dataSize = subresourceHeaders[subresourceSlot].width *
 			subresourceHeaders[subresourceSlot].height * texelSizeInBytes;
 
 		std::memcpy(destination, dataPtr, dataSize);
 		subresourceHeaders[subresourceSlot].framesLeft = nrOfFrames;
-		headers[resourceIndex].specifics.needUpdating = true;
+		headers[resourceIndex.descriptorIndex].specifics.needUpdating = true;
 		updateNeeded = true;
 	}
 	else
 	{
 		for (auto& header : headers)
 		{
-			if (header.resourceIndex != resourceIndex)
+			if (header.resourceIndex.descriptorIndex != resourceIndex.descriptorIndex)
 				continue;
 
 			size_t subresourceSlot = header.specifics.startSubresource;
@@ -214,7 +220,9 @@ void Texture2DComponentData::UpdateComponentData(ResourceIndex resourceIndex,
 	}
 }
 
-void Texture2DComponentData::PrepareUpdates(std::vector<D3D12_RESOURCE_BARRIER>& barriers, Texture2DComponent& componentToUpdate)
+void Texture2DComponentData::PrepareUpdates(
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers,
+	Texture2DComponent& componentToUpdate)
 {
 	if (this->updateNeeded == false || type == UpdateType::MAP_UPDATE)
 		return;

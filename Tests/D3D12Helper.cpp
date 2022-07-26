@@ -20,7 +20,7 @@ IDXGIAdapter* GetAdapter()
 	size_t adapterVideoMemory = 0;
 	hr = S_OK;
 
-	while (hr == S_OK)
+	while (true)
 	{
 		IDXGIAdapter* currentAdapter = nullptr;
 		hr = factory->EnumAdapters(adapterIndex, &currentAdapter);
@@ -224,7 +224,6 @@ void CheckTextureData(ID3D12Resource* readbackBuffer,
 		}
 	}
 }
-
 
 std::vector<DescriptorAllocationInfo<Texture2DViewDesc>>
 CreateDescriptorAllocationInfo(size_t maxNrOfTextures,

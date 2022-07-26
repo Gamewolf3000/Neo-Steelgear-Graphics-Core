@@ -87,10 +87,8 @@ public:
 		Texture2DUnorderedAccessDesc, Texture2DRenderTargetDesc, 
 		Texture2DDepthStencilDesc>::TextureReplacementViews& replacementViews = {});
 
-	void RemoveComponent(ResourceIndex indexToRemove);
-
-	D3D12_RESOURCE_STATES GetCurrentState(ResourceIndex resourceIndex);
-	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(ResourceIndex resourceIndex,
+	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIndex& resourceIndex);
+	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIndex& resourceIndex,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 };

@@ -24,7 +24,7 @@ private:
 
 	size_t bufferSize = 0;
 	size_t bufferAlignment = 0;
-	BufferComponentData componentData;
+	InternalBufferComponentData componentData;
 
 	void HandleStoredOperations() override;
 
@@ -43,9 +43,9 @@ public:
 	ResourceIndex CreateBuffer(size_t nrOfElements,
 		const BufferReplacementViews& replacementViews = BufferReplacementViews());
 
-	void RemoveComponent(ResourceIndex indexToRemove) override;
+	void RemoveComponent(const ResourceIndex& indexToRemove) override;
 
-	void SetUpdateData(ResourceIndex resourceIndex, void* dataAdress);
+	void SetUpdateData(const ResourceIndex& resourceIndex, void* dataAdress);
 	void PrepareResourcesForUpdates(std::vector<D3D12_RESOURCE_BARRIER>& barriers);
 	void PerformUpdates(ID3D12GraphicsCommandList* commandList,
 		ResourceUploader& uploader);
@@ -54,8 +54,8 @@ public:
 	void ChangeToState(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState);
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(ResourceIndex index);
-	BufferHandle GetBufferHandle(ResourceIndex index);
+	D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(const ResourceIndex& index);
+	BufferHandle GetBufferHandle(const ResourceIndex& index);
 };
 
 template<short Frames>
@@ -126,21 +126,11 @@ inline void FrameBufferComponent<Frames>::Initialize(ID3D12Device* deviceToUse,
 	if (componentUpdateType != UpdateType::INITIALISE_ONLY &&
 		componentUpdateType != UpdateType::NONE)
 	{
-		unsigned int totalSize = 0;
-		if (bufferInfo.heapInfo.heapType == HeapType::EXTERNAL)
-		{
-			totalSize = static_cast<unsigned int>(
-				bufferInfo.heapInfo.info.external.endOffset
-				- bufferInfo.heapInfo.info.external.startOffset);
-		}
-		else
-		{
-			totalSize = static_cast<unsigned int>(
-				bufferInfo.heapInfo.info.owned.heapSize);
-		}
+		unsigned int initialSize =
+			static_cast<unsigned int>(bufferInfo.memoryInfo.initialMinimumHeapSize);
 
 		this->componentData.Initialize(deviceToUse, Frames, 
-			componentUpdateType, totalSize);
+			componentUpdateType, initialSize);
 	}
 	else
 	{
@@ -156,9 +146,6 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 	ResourceIndex toReturn = 
 		this->resourceComponents[this->activeFrame].CreateBuffer(
 		nrOfElements, replacementViews);
-
-	if (toReturn == ResourceIndex(-1))
-		return ResourceIndex(-1);
 
 	if constexpr (Frames != 1)
 	{
@@ -180,16 +167,16 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 
 template<short Frames>
 inline void FrameBufferComponent<Frames>::RemoveComponent(
-	ResourceIndex indexToRemove)
+	const ResourceIndex& indexToRemove)
 {
+	componentData.RemoveComponent(indexToRemove);
 	FrameResourceComponent<BufferComponent, Frames,
 		BufferCreationOperation>::RemoveComponent(indexToRemove);
-	componentData.RemoveComponent(indexToRemove);
 }
 
 template<short Frames>
 inline void FrameBufferComponent<Frames>::SetUpdateData(
-	ResourceIndex resourceIndex, void* dataAdress)
+	const ResourceIndex& resourceIndex, void* dataAdress)
 {
 	this->componentData.UpdateComponentData(resourceIndex, dataAdress);
 }
@@ -222,15 +209,14 @@ inline void FrameBufferComponent<Frames>::ChangeToState(
 {
 	if (newState != this->resourceComponents[this->activeFrame].GetCurrentState())
 	{
-		barriers.push_back(
-			this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
-				newState));
+		this->resourceComponents[this->activeFrame].CreateTransitionBarrier(newState,
+			barriers);
 	}
 }
 
 template<short Frames>
 inline D3D12_GPU_VIRTUAL_ADDRESS 
-FrameBufferComponent<Frames>::GetVirtualAdress(ResourceIndex index)
+FrameBufferComponent<Frames>::GetVirtualAdress(const ResourceIndex& index)
 {
 	auto handle = 
 		this->resourceComponents[this->activeFrame].GetBufferHandle(index);
@@ -242,7 +228,7 @@ FrameBufferComponent<Frames>::GetVirtualAdress(ResourceIndex index)
 }
 
 template<short Frames>
-inline BufferHandle FrameBufferComponent<Frames>::GetBufferHandle(ResourceIndex index)
+inline BufferHandle FrameBufferComponent<Frames>::GetBufferHandle(const ResourceIndex& index)
 {
 	return this->resourceComponents[this->activeFrame].GetBufferHandle(index);
 }

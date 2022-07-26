@@ -14,7 +14,7 @@ struct BufferComponentInfo
 {
 	BufferInfo bufferInfo;
 	bool mappedResource;
-	ResourceHeapInfo heapInfo;
+	ResourceComponentMemoryInfo memoryInfo;
 };
 
 union BufferViewDesc
@@ -130,24 +130,21 @@ public:
 	ResourceIndex CreateBuffer(size_t nrOfElements,
 		const BufferReplacementViews& replacementViews = BufferReplacementViews());
 
-	void RemoveComponent(ResourceIndex indexToRemove);
+	void RemoveComponent(const ResourceIndex& indexToRemove);
 
-	const D3D12_CPU_DESCRIPTOR_HANDLE 
-		GetDescriptorHeapCBV(ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE 
-		GetDescriptorHeapSRV(ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE
-		GetDescriptorHeapUAV(ResourceIndex indexOffset = 0) const override;
-	const D3D12_CPU_DESCRIPTOR_HANDLE 
-		GetDescriptorHeapRTV(ResourceIndex indexOffset = 0) const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapCBV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapSRV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapUAV() const override;
+	const D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHeapRTV() const override;
 	bool HasDescriptorsOfType(ViewType type) const override;
 
-	BufferHandle GetBufferHandle(const ResourceIndex& index);
-	unsigned char* GetMappedPtr();
+	BufferHandle GetBufferHandle(const ResourceIndex& resourceIndex);
+	unsigned char* GetMappedPtr(const ResourceIndex& resourceIndex);
 
 	D3D12_RESOURCE_STATES GetCurrentState();
-	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
+	void CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
+		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-	void UpdateMappedBuffer(ResourceIndex index, void* data);
+	void UpdateMappedBuffer(const ResourceIndex& resourceIndex, void* data);
 };

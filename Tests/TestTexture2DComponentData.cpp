@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "../Neo Steelgear Graphics Core/Texture2DComponentData.h"
+#include "../Neo Steelgear Graphics Core/MultiHeapAllocatorGPU.h"
 
 #include "D3D12Helper.h"
 
@@ -19,7 +20,7 @@ void InitializationHelper(std::function<void(ID3D12Device*, unsigned int,
 	if (device == nullptr)
 		FAIL() << "Cannot proceed with tests as a device could not be created";
 
-	std::array<UpdateType, 4> updateTypes = { UpdateType::NONE,
+	std::array<UpdateType, 3> updateTypes = { UpdateType::NONE,
 	UpdateType::INITIALISE_ONLY, UpdateType::COPY_UPDATE };
 
 	for (unsigned int frame = 1; frame < 9; ++frame)
@@ -60,6 +61,11 @@ TEST(Texture2DComponentDataTest, PerformsSimpleAddsCorrectly)
 			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
 			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
 
+		ResourceIndex startIndex;
+		startIndex.allocatorIdentifier.heapChunkIndex = 0;
+		startIndex.allocatorIdentifier.internalIndex = 0;
+		startIndex.descriptorIndex = 0;
+
 		for (auto width : dimensions)
 		{
 			size_t currentlyUsedMemory = 0;
@@ -95,7 +101,11 @@ TEST(Texture2DComponentDataTest, PerformsSimpleAddsCorrectly)
 
 							currentlyUsedMemory = alignedEnd;
 							auto resource = CreateTexture2D(device, desc);
-							ResourceIndex index(currentExpectedIndex);
+							ResourceIndex index;
+							index.allocatorIdentifier.heapChunkIndex = 0;
+							index.allocatorIdentifier.internalIndex = 
+								currentExpectedIndex;
+							index.descriptorIndex = currentExpectedIndex;
 							size_t textureByteSize = 0;
 
 							unsigned int subresources = 
@@ -123,7 +133,7 @@ TEST(Texture2DComponentDataTest, PerformsSimpleAddsCorrectly)
 								unsigned char* startPtr = 
 									static_cast<unsigned char*>(
 									componentData.GetComponentData(
-										ResourceIndex(0)));
+										startIndex));
 								void* current =
 									componentData.GetComponentData(index);
 								ASSERT_EQ(startPtr + currentDataOffset, current);
@@ -157,6 +167,11 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, 
 			{DXGI_FORMAT_R32G32B32_UINT, 12} };
 
+		ResourceIndex startIndex;
+		startIndex.allocatorIdentifier.heapChunkIndex = 0;
+		startIndex.allocatorIdentifier.internalIndex = 0;
+		startIndex.descriptorIndex = 0;
+
 		for (auto width : dimensions)
 		{
 			size_t currentlyUsedMemory = 0;
@@ -192,7 +207,11 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 
 							currentlyUsedMemory = alignedEnd;
 							auto resource = CreateTexture2D(device, desc);
-							ResourceIndex index(currentExpectedIndex);
+							ResourceIndex index;
+							index.allocatorIdentifier.heapChunkIndex = 0;
+							index.allocatorIdentifier.internalIndex =
+								currentExpectedIndex;
+							index.descriptorIndex = currentExpectedIndex;
 							size_t textureByteSize = 0;
 
 							unsigned int subresources =
@@ -220,7 +239,7 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 								unsigned char* startPtr =
 									static_cast<unsigned char*>(
 										componentData.GetComponentData(
-											ResourceIndex(0)));
+											startIndex));
 								void* current =
 									componentData.GetComponentData(index);
 								ASSERT_EQ(startPtr + currentDataOffset, current);
@@ -234,12 +253,17 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 			}
 
 			unsigned char* dataStart = static_cast<unsigned char*>(
-				componentData.GetComponentData(ResourceIndex(0)));
+				componentData.GetComponentData(startIndex));
 
 			for (unsigned int indexCounter = 0; indexCounter < textures.size();
 				++indexCounter)
 			{
-				componentData.RemoveComponent(ResourceIndex(indexCounter));
+				ResourceIndex index;
+				index.allocatorIdentifier.heapChunkIndex = 0;
+				index.allocatorIdentifier.internalIndex =
+					indexCounter;
+				index.descriptorIndex = indexCounter;
+				componentData.RemoveComponent(index);
 			}
 
 			for (unsigned int indexCounter = 0; 
@@ -247,7 +271,11 @@ TEST(Texture2DComponentDataTest, PerformsSimpleRemovesCorrectly)
 			{
 				auto& entry = textures[indexCounter];
 				auto desc = entry.first->GetDesc();
-				auto index = ResourceIndex(indexCounter);
+				ResourceIndex index;
+				index.allocatorIdentifier.heapChunkIndex = 0;
+				index.allocatorIdentifier.internalIndex =
+					indexCounter;
+				index.descriptorIndex = indexCounter;
 
 				componentData.AddComponent(index, entry.second, entry.first);
 
@@ -273,12 +301,18 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 		if (updateType == UpdateType::NONE)
 			return;
 
+		MultiHeapAllocatorGPU heapAllocator;
+		heapAllocator.Initialize(device);
+
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
 		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
 		std::array<UINT16, 2> mipLevels = { 1, 0 };
 		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = { 
-			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_R32_FLOAT, 4},
 			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
+		Texture2DViewDesc viewDesc(ViewType::SRV);
+		DescriptorAllocationInfo<Texture2DViewDesc> dai(ViewType::SRV,
+			viewDesc, 1);
 
 		size_t currentFenceValue = 0;
 		ID3D12Fence* fence = CreateFence(device, currentFenceValue,
@@ -307,10 +341,14 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 			componentData.Initialize(device, totalNrOfFrames, updateType,
 				totalSize);
 
+			ResourceComponentMemoryInfo memoryInfo;
+			memoryInfo.initialMinimumHeapSize = totalSize;
+			memoryInfo.expansionMinimumSize = 0;
+			memoryInfo.heapAllocator = &heapAllocator;
 			TextureComponentInfo componentInfo(textureInfo.first,
-				textureInfo.second, ResourceHeapInfo(totalSize));
+				textureInfo.second, memoryInfo);
 			Texture2DComponent component;
-			component.Initialize(device, componentInfo, {}); // Views should not affect this
+			component.Initialize(device, componentInfo, { dai });
 
 			for (auto width : dimensions)
 			{
@@ -322,7 +360,7 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 						{
 							D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
 								height, mips, arraySize, textureInfo.first,
-								{ false, false, false, false });
+								{ true, false, false, false });
 							D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
 								device->GetResourceAllocationInfo(0, 1, &desc);
 
@@ -339,7 +377,9 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 
 							auto index = component.CreateTexture(width, height,
 								arraySize, mips);
-							ASSERT_NE(index, ResourceIndex(-1));
+							ASSERT_EQ(index.allocatorIdentifier.heapChunkIndex, 0);
+							ASSERT_NE(index.allocatorIdentifier.internalIndex, size_t(-1));
+							ASSERT_NE(index.descriptorIndex, size_t(-1));
 							auto handle = component.GetTextureHandle(index);
 
 							size_t textureByteSize = 0;
@@ -419,7 +459,10 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 					if (FAILED(commandStructure.list->Reset(commandStructure.allocator, nullptr)))
 						throw "Cannot proceed with tests as command list cannot be reset";
 
-					ResourceIndex index(i);
+					ResourceIndex index;
+					index.allocatorIdentifier.heapChunkIndex = 0;
+					index.allocatorIdentifier.internalIndex = i;
+					index.descriptorIndex = i;
 					auto handle = component.GetTextureHandle(index);
 					auto desc = handle.resource->GetDesc();
 					unsigned int subresources = desc.MipLevels * desc.DepthOrArraySize;
@@ -466,6 +509,111 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 
 		fence->Release();
 		delete[] data;
+	};
+
+	InitializationHelper(lambda);
+}
+
+
+TEST(Texture2DComponentDataTest, ExpandsCorrectly)
+{
+	auto lambda = [](ID3D12Device* device, unsigned int totalNrOfFrames,
+		UpdateType updateType, unsigned int totalSize)
+	{
+		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
+		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
+		std::array<UINT16, 2> mipLevels = { 1, 0 };
+		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = {
+			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_D32_FLOAT, 4},
+			{DXGI_FORMAT_R32G32B32A32_FLOAT, 16}, {DXGI_FORMAT_R32G32B32_UINT, 12} };
+
+		ResourceIndex startIndex;
+		startIndex.allocatorIdentifier.heapChunkIndex = 0;
+		startIndex.allocatorIdentifier.internalIndex = 0;
+		startIndex.descriptorIndex = 0;
+
+		for (auto width : dimensions)
+		{
+			size_t currentlyUsedMemory = 0;
+			size_t currentDataOffset = 0;
+			size_t currentExpectedIndex = 0;
+			std::vector<std::pair<ID3D12Resource*, size_t>> textures;
+			Texture2DComponentData componentData;
+			componentData.Initialize(device, totalNrOfFrames, updateType, 0);
+
+			for (auto height : dimensions)
+			{
+				for (auto mips : mipLevels)
+				{
+					for (auto arraySize : arraySizes)
+					{
+						for (auto textureInfo : textureInfos)
+						{
+							D3D12_RESOURCE_DESC desc = CreateTexture2DDesc(width,
+								height, mips, arraySize, textureInfo.first,
+								{ false, false, false, false });
+							D3D12_RESOURCE_ALLOCATION_INFO allocationInfo =
+								device->GetResourceAllocationInfo(0, 1, &desc);
+
+							size_t alignedStart = ((currentlyUsedMemory +
+								(allocationInfo.Alignment - 1)) &
+								~(allocationInfo.Alignment - 1));
+							size_t alignedEnd = alignedStart +
+								allocationInfo.SizeInBytes;
+
+							if (alignedEnd > totalSize)
+								break;
+
+							currentlyUsedMemory = alignedEnd;
+							auto resource = CreateTexture2D(device, desc);
+							ResourceIndex index;
+							index.allocatorIdentifier.heapChunkIndex = 0;
+							index.allocatorIdentifier.internalIndex =
+								currentExpectedIndex;
+							index.descriptorIndex = currentExpectedIndex;
+							size_t textureByteSize = 0;
+
+							unsigned int subresources =
+								resource->GetDesc().MipLevels * arraySize;
+
+							for (unsigned int subresource = 0;
+								subresource < subresources; ++subresource)
+							{
+								D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
+								UINT nrOfRows = 0;
+								UINT64 rowSize = 0, subresourceSize = 0;
+								device->GetCopyableFootprints(&desc, subresource,
+									1, 0, &placedFootprint, &nrOfRows,
+									&rowSize, &subresourceSize);
+								textureByteSize += nrOfRows * rowSize;
+							}
+
+							componentData.AddComponent(index, textureByteSize,
+								resource);
+							textures.push_back(std::make_pair(resource,
+								textureByteSize));
+
+							if (updateType != UpdateType::NONE)
+							{
+								unsigned char* startPtr =
+									static_cast<unsigned char*>(
+										componentData.GetComponentData(
+											startIndex));
+								void* current =
+									componentData.GetComponentData(index);
+								ASSERT_EQ(startPtr + currentDataOffset, current);
+							}
+
+							currentDataOffset += textureByteSize;
+							++currentExpectedIndex;
+						}
+					}
+				}
+			}
+
+			for (auto& texture : textures)
+				texture.first->Release();
+		}
 	};
 
 	InitializationHelper(lambda);

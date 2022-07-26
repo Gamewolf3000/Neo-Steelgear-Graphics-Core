@@ -259,3 +259,38 @@ TEST(DescriptorAllocatorTest, ReallocatesCorrectly)
 	infoQueue->Release();
 	resource->Release();
 }
+
+TEST(DescriptorAllocatorTest, ExpandsCorrectly)
+{
+	ID3D12Device* device = CreateDevice();
+	if (device == nullptr)
+		FAIL() << "Cannot proceed with tests as a device could not be created";
+
+	ID3D12InfoQueue* infoQueue = nullptr;
+	HRESULT hr = device->QueryInterface(IID_PPV_ARGS(&infoQueue));
+	if (FAILED(hr))
+		FAIL() << "Cannot proceed with tests as a info queue interface could not be queried";
+
+	DescriptorAllocator descriptorAllocator;
+	descriptorAllocator.Initialize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		device, 1000);
+
+	ID3D12Resource* resource = CreateBuffer(device, 256, false,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	if (resource == nullptr)
+		FAIL() << "Cannot proceed with tests as resource could not be created";
+
+	ASSERT_EQ(descriptorAllocator.NrOfStoredDescriptors(), 0);
+
+	UINT64 nrOfMessagesBefore = infoQueue->GetNumMessagesAllowedByStorageFilter();
+	MassAllocateDescriptors(descriptorAllocator, 2500, DescriptorType::UAV,
+		resource, 0);
+	UINT64 nrOfMessagesAfter = infoQueue->GetNumMessagesAllowedByStorageFilter();
+	ASSERT_EQ(nrOfMessagesAfter, nrOfMessagesBefore);
+
+	ASSERT_EQ(descriptorAllocator.NrOfStoredDescriptors(), 2500);
+
+	device->Release();
+	infoQueue->Release();
+	resource->Release();
+}
