@@ -183,10 +183,8 @@ void BufferAllocator::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
 unsigned char* BufferAllocator::GetMappedPtr(const ResourceIdentifier& identifier)
 {
 	auto& memoryChunk = memoryChunks[identifier.heapChunkIndex];
-	auto toReturn = memoryChunk.mappedStart;
-
-	for (size_t i = 0; i < identifier.internalIndex; ++i)
-		toReturn += memoryChunk.buffers[i].nrOfElements * bufferInfo.elementSize;
+	auto toReturn = memoryChunk.mappedStart + 
+		memoryChunk.buffers.GetStartOfChunk(identifier.internalIndex);
 
 	return toReturn;
 }

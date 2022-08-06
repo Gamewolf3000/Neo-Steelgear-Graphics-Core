@@ -178,16 +178,6 @@ D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(const ResourceIdentifier
 	return memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex].currentState;
 }
 
-//size_t TextureAllocator::GetMaxIndex()
-//{
-//	return textures.GetCurrentMaxIndex();
-//}
-
-//bool TextureAllocator::CheckIfActive(size_t index)
-//{
-//	return textures.ChunkActive(index);
-//}
-
 D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(
 	const ResourceIdentifier& identifier, D3D12_RESOURCE_STATES newState,
 	D3D12_RESOURCE_BARRIER_FLAGS flag)

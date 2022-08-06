@@ -67,8 +67,12 @@ inline void FrameBufferComponent<Frames>::HandleStoredOperations()
 		if (operation.type == BufferLifetimeOperationType::CREATION)
 		{
 			auto& creationData = operation.creation;
-			this->resourceComponents[this->activeFrame].CreateBuffer(
+			auto identifier = this->resourceComponents[this->activeFrame].CreateBuffer(
 				creationData.nrOfElements, creationData.replacementViews);
+
+			BufferHandle handle =
+				this->resourceComponents[this->activeFrame].GetBufferHandle(identifier);
+			this->AddInitializationBarrier(handle.resource);
 		}
 		else
 		{
@@ -157,8 +161,9 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 		this->storedLifetimeOperations.push_back(lifetimeOperation);
 	}
 
-	auto handle =
+	BufferHandle handle =
 		this->resourceComponents[this->activeFrame].GetBufferHandle(toReturn);
+	AddInitializationBarrier(handle.resource);
 	this->componentData.AddComponent(toReturn, handle.startOffset,
 		static_cast<unsigned int>(nrOfElements * bufferSize));
 
