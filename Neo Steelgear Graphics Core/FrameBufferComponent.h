@@ -163,7 +163,7 @@ inline ResourceIndex FrameBufferComponent<Frames>::CreateBuffer(
 
 	BufferHandle handle =
 		this->resourceComponents[this->activeFrame].GetBufferHandle(toReturn);
-	AddInitializationBarrier(handle.resource);
+	this->AddInitializationBarrier(handle.resource);
 	this->componentData.AddComponent(toReturn, handle.startOffset,
 		static_cast<unsigned int>(nrOfElements * bufferSize));
 
