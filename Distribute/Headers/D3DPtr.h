@@ -90,6 +90,6 @@ public:
 
     T* const Get() const
     {
-        return static_cast<const T*>(ptr);
+        return static_cast<T* const>(ptr);
     }
 };
