@@ -86,7 +86,7 @@ inline void FrameTexture2DComponent<Frames>::HandleStoredOperations()
 
 			TextureHandle handle =
 				this->resourceComponents[this->activeFrame].GetTextureHandle(identifier);
-			AddInitializationBarrier(handle.resource);
+			this->AddInitializationBarrier(handle.resource);
 		}
 		else
 		{

@@ -58,7 +58,17 @@ public:
         return static_cast<T*>(ptr);
     }
 
+    const T* operator->() const
+    {
+        return static_cast<T*>(ptr);
+    }
+
     operator T*()
+    {
+        return static_cast<T*>(ptr);
+    }
+
+    operator const T* () const
     {
         return static_cast<T*>(ptr);
     }
@@ -68,8 +78,18 @@ public:
         return reinterpret_cast<T**>(&ptr);
     }
 
+    T* const* operator&() const
+    {
+        return reinterpret_cast<T* const*>(&ptr);
+    }
+
     T* Get()
     {
         return static_cast<T*>(ptr);
+    }
+
+    const T* Get() const
+    {
+        return static_cast<const T*>(ptr);
     }
 };

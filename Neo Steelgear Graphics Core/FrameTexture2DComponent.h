@@ -198,7 +198,7 @@ inline ResourceIndex FrameTexture2DComponent<Frames>::CreateTexture(
 
 	TextureHandle handle = 
 		this->resourceComponents[this->activeFrame].GetTextureHandle(toReturn);
-	AddInitializationBarrier(handle.resource);
+	this->AddInitializationBarrier(handle.resource);
 	auto desc = handle.resource->GetDesc();
 	unsigned int totalSize = 0;
 
