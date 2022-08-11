@@ -130,6 +130,7 @@ public:
 	bool HasDescriptorsOfType(ViewType type) const override;
 
 	TextureHandle GetTextureHandle(const ResourceIndex& resourceIndex);
+	const TextureHandle GetTextureHandle(const ResourceIndex& resourceIndex) const;
 
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIndex& resourceIndex,
 		D3D12_RESOURCE_STATES newState,
@@ -327,6 +328,12 @@ template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
 inline TextureHandle 
 TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetTextureHandle(
 	const ResourceIndex& resourceIndex)
+{
+	return textureAllocator.GetHandle(resourceIndex.allocatorIdentifier);
+}
+
+template<typename DescSRV, typename DescUAV, typename DescRTV, typename DescDSV>
+inline const TextureHandle TextureComponent<DescSRV, DescUAV, DescRTV, DescDSV>::GetTextureHandle(const ResourceIndex& resourceIndex) const
 {
 	return textureAllocator.GetHandle(resourceIndex.allocatorIdentifier);
 }

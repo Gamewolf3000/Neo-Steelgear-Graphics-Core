@@ -173,6 +173,18 @@ TextureHandle TextureAllocator::GetHandle(const ResourceIdentifier& identifier)
 	return toReturn;
 }
 
+const TextureHandle TextureAllocator::GetHandle(const ResourceIdentifier& identifier) const
+{
+	const auto& textureEntry =
+		memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex];
+
+	TextureHandle toReturn;
+	toReturn.resource = textureEntry.resource;
+	toReturn.dimensions = textureEntry.dimensions;
+
+	return toReturn;
+}
+
 D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(const ResourceIdentifier& identifier)
 {
 	return memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex].currentState;

@@ -55,7 +55,9 @@ public:
 		D3D12_RESOURCE_STATES newState);
 
 	D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(const ResourceIndex& index);
+	const D3D12_GPU_VIRTUAL_ADDRESS GetVirtualAdress(const ResourceIndex& index) const;
 	BufferHandle GetBufferHandle(const ResourceIndex& index);
+	const BufferHandle GetBufferHandle(const ResourceIndex& index) const;
 };
 
 template<short Frames>
@@ -233,7 +235,25 @@ FrameBufferComponent<Frames>::GetVirtualAdress(const ResourceIndex& index)
 }
 
 template<short Frames>
+inline const D3D12_GPU_VIRTUAL_ADDRESS FrameBufferComponent<Frames>::GetVirtualAdress(const ResourceIndex& index) const
+{
+	auto handle =
+		this->resourceComponents[this->activeFrame].GetBufferHandle(index);
+	D3D12_GPU_VIRTUAL_ADDRESS toReturn =
+		handle.resource->GetGPUVirtualAddress();
+	toReturn += handle.startOffset;
+
+	return toReturn;
+}
+
+template<short Frames>
 inline BufferHandle FrameBufferComponent<Frames>::GetBufferHandle(const ResourceIndex& index)
+{
+	return this->resourceComponents[this->activeFrame].GetBufferHandle(index);
+}
+
+template<short Frames>
+inline const BufferHandle FrameBufferComponent<Frames>::GetBufferHandle(const ResourceIndex& index) const
 {
 	return this->resourceComponents[this->activeFrame].GetBufferHandle(index);
 }

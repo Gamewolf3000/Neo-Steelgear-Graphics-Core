@@ -71,6 +71,7 @@ public:
 
 	unsigned char* GetMappedPtr(const ResourceIdentifier& identifier);
 	BufferHandle GetHandle(const ResourceIdentifier& identifier);
+	const BufferHandle GetHandle(const ResourceIdentifier& identifier) const;
 	size_t GetElementSize();
 	size_t GetElementAlignment();
 	D3D12_RESOURCE_STATES GetCurrentState();

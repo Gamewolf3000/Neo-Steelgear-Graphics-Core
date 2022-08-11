@@ -139,6 +139,7 @@ public:
 	bool HasDescriptorsOfType(ViewType type) const override;
 
 	BufferHandle GetBufferHandle(const ResourceIndex& resourceIndex);
+	const BufferHandle GetBufferHandle(const ResourceIndex& resourceIndex) const;
 	unsigned char* GetMappedPtr(const ResourceIndex& resourceIndex);
 
 	D3D12_RESOURCE_STATES GetCurrentState();

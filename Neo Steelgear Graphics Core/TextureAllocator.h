@@ -143,6 +143,7 @@ public:
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
 	TextureHandle GetHandle(const ResourceIdentifier& identifier);
+	const TextureHandle GetHandle(const ResourceIdentifier& identifier) const;
 	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIdentifier& identifier);
 
 	//size_t GetMaxIndex();

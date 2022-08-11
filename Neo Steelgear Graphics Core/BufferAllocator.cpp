@@ -201,6 +201,18 @@ BufferHandle BufferAllocator::GetHandle(const ResourceIdentifier& identifier)
 	return toReturn;
 }
 
+const BufferHandle BufferAllocator::GetHandle(const ResourceIdentifier& identifier) const
+{
+	auto& memoryChunk = memoryChunks[identifier.heapChunkIndex];
+
+	BufferHandle toReturn;
+	toReturn.resource = memoryChunk.resource;
+	toReturn.startOffset = memoryChunk.buffers.GetStartOfChunk(identifier.internalIndex);
+	toReturn.nrOfElements = memoryChunk.buffers[identifier.internalIndex].nrOfElements;
+
+	return toReturn;
+}
+
 size_t BufferAllocator::GetElementSize()
 {
 	return bufferInfo.elementSize;

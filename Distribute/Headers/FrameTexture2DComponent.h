@@ -66,6 +66,7 @@ public:
 		D3D12_RESOURCE_STATES newState);
 
 	TextureHandle GetTextureHandle(const ResourceIndex& index);
+	const TextureHandle GetTextureHandle(const ResourceIndex& index) const;
 };
 
 template<FrameType Frames>
@@ -286,6 +287,12 @@ inline void FrameTexture2DComponent<Frames>::ChangeToState(
 template<FrameType Frames>
 inline TextureHandle FrameTexture2DComponent<Frames>::GetTextureHandle(
 	const ResourceIndex& index)
+{
+	return this->resourceComponents[this->activeFrame].GetTextureHandle(index);
+}
+
+template<FrameType Frames>
+inline const TextureHandle FrameTexture2DComponent<Frames>::GetTextureHandle(const ResourceIndex& index) const
 {
 	return this->resourceComponents[this->activeFrame].GetTextureHandle(index);
 }

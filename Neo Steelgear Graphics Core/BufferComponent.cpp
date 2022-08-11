@@ -301,6 +301,11 @@ BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& resourceIndex
 	return bufferAllocator.GetHandle(resourceIndex.allocatorIdentifier);
 }
 
+const BufferHandle BufferComponent::GetBufferHandle(const ResourceIndex& resourceIndex) const
+{
+	return bufferAllocator.GetHandle(resourceIndex.allocatorIdentifier);
+}
+
 unsigned char* BufferComponent::GetMappedPtr(const ResourceIndex& resourceIndex)
 {
 	return bufferAllocator.GetMappedPtr(resourceIndex.allocatorIdentifier);
