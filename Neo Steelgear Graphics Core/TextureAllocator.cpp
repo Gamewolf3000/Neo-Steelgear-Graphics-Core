@@ -143,9 +143,9 @@ ResourceIdentifier TextureAllocator::AllocateTexture(const TextureAllocationInfo
 	auto& textureEntry = textureVector[toReturn.internalIndex];
 
 	textureEntry.resource = ResourceAllocator::AllocateResource(
-		memoryChunks[toReturn.heapChunkIndex].heapChunk.heap, desc, D3D12_RESOURCE_STATE_COMMON,
+		memoryChunks[toReturn.heapChunkIndex].heapChunk.heap, desc, info.initialState,
 		clearValue, textureVector.GetStartOfChunk(toReturn.internalIndex), device);
-	textureEntry.currentState = D3D12_RESOURCE_STATE_COMMON;
+	textureEntry.currentState = info.initialState;
 	textureEntry.dimensions = info.dimensions;
 	textureEntry.texelSize = info.texelSize;
 	textureEntry.clearValue = clearValue != nullptr ? std::make_optional(*clearValue) : std::nullopt;

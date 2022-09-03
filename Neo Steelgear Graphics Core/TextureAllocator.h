@@ -27,14 +27,16 @@ struct TextureAllocationInfo
 	std::uint8_t sampleCount;
 	std::uint8_t sampleQuality;
 	std::optional<D3D12_CLEAR_VALUE> clearValue;
+	D3D12_RESOURCE_STATES initialState;
 
 	TextureAllocationInfo(DXGI_FORMAT format, std::uint8_t texelSize,
 		size_t width, size_t height, size_t arraySize = 1,
 		size_t mipLevels = 1, std::uint8_t sampleCount = 1,
-		std::uint8_t sampleQuality = 0, D3D12_CLEAR_VALUE* clearValue = nullptr) :
+		std::uint8_t sampleQuality = 0, const D3D12_CLEAR_VALUE* clearValue = nullptr,
+		D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON) :
 		format(format), texelSize(texelSize), dimensions({ width, height, arraySize }),
 		textureType(D3D12_RESOURCE_DIMENSION_TEXTURE2D), mipLevels(mipLevels),
-		sampleCount(sampleCount), sampleQuality(sampleQuality)
+		sampleCount(sampleCount), sampleQuality(sampleQuality), initialState(initialState)
 	{
 		if (clearValue == nullptr)
 			this->clearValue = std::nullopt;

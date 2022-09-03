@@ -305,7 +305,7 @@ TEST(Texture2DComponentDataTest, PerformsUpdatesCorrectly)
 		heapAllocator.Initialize(device);
 
 		std::array<UINT, 7> dimensions = { 1, 2, 5, 20, 128, 499, 1024 };
-		std::array<UINT16, 5> arraySizes = { 1, 2, 7, 8, 10 };
+		std::array<UINT16, 3> arraySizes = { 1, 2, 3};
 		std::array<UINT16, 2> mipLevels = { 1, 0 };
 		std::vector<std::pair<DXGI_FORMAT, std::uint8_t>> textureInfos = { 
 			{DXGI_FORMAT_R8G8B8A8_UNORM, 4}, {DXGI_FORMAT_R32_FLOAT, 4},

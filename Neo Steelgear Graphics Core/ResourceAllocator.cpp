@@ -90,9 +90,12 @@ ResourceAllocator::~ResourceAllocator()
 }
 
 ResourceAllocator::ResourceAllocator(ResourceAllocator&& other) noexcept :
-	views(other.views)
+	views(other.views), heapAllocator(other.heapAllocator),
+	additionalHeapChunksMinimumSize(other.additionalHeapChunksMinimumSize)
 {
 	other.views = AllowedViews();
+	other.heapAllocator = nullptr;
+	other.additionalHeapChunksMinimumSize = 0;
 }
 
 ResourceAllocator& ResourceAllocator::operator=(ResourceAllocator&& other) noexcept
@@ -101,6 +104,10 @@ ResourceAllocator& ResourceAllocator::operator=(ResourceAllocator&& other) noexc
 	{
 		views = other.views;
 		other.views = AllowedViews();
+		heapAllocator = other.heapAllocator;
+		other.heapAllocator = nullptr;
+		additionalHeapChunksMinimumSize = other.additionalHeapChunksMinimumSize;
+		other.additionalHeapChunksMinimumSize = 0;
 	}
 
 	return *this;
