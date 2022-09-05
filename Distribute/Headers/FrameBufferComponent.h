@@ -24,7 +24,7 @@ private:
 
 	size_t bufferSize = 0;
 	size_t bufferAlignment = 0;
-	InternalBufferComponentData componentData;
+	BufferComponentData componentData;
 
 	void HandleStoredOperations() override;
 
@@ -134,14 +134,16 @@ inline void FrameBufferComponent<Frames>::Initialize(ID3D12Device* deviceToUse,
 	{
 		unsigned int initialSize =
 			static_cast<unsigned int>(bufferInfo.memoryInfo.initialMinimumHeapSize);
+		unsigned int expansionSize =
+			static_cast<unsigned int>(bufferInfo.memoryInfo.expansionMinimumSize);
 
 		this->componentData.Initialize(deviceToUse, Frames, 
-			componentUpdateType, initialSize);
+			componentUpdateType, initialSize, expansionSize);
 	}
 	else
 	{
 		this->componentData.Initialize(deviceToUse, Frames,
-			componentUpdateType, 0);
+			componentUpdateType, 0, 0);
 	}
 }
 

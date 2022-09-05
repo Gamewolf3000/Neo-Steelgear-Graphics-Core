@@ -218,7 +218,13 @@ void RemoveSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 		startIndex.allocatorIdentifier.heapChunkIndex = 0;
 		startIndex.allocatorIdentifier.internalIndex = 0;
 		startIndex.descriptorIndex = 0;
-		auto firstAdress = bufferComponent.GetVirtualAdress(startIndex);
+		std::array<D3D12_GPU_VIRTUAL_ADDRESS, frames> firstAdresses;
+
+		for (FrameType i = 0; i < frames; ++i)
+		{
+			firstAdresses[i] = bufferComponent.GetVirtualAdress(startIndex);
+			bufferComponent.SwapFrame();
+		}
 
 		for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 		{
@@ -244,10 +250,11 @@ void RemoveSimpleBuffers(ID3D12Device* device, UpdateType updateType,
 		size_t stride = ((componentInfo.bufferInfo.elementSize +
 			(componentInfo.bufferInfo.alignment - 1)) &
 			~(componentInfo.bufferInfo.alignment - 1)) * nrOfElements;
-		auto maxAdress = firstAdress + stride * (nrOfAllocations / nrOfElements);
 
 		for (unsigned int frame = 0; frame < frames * 2; ++frame)
 		{
+			auto maxAdress = firstAdresses[frame % frames] + stride * (nrOfAllocations / nrOfElements);
+
 			for (unsigned int i = 0; i < nrOfAllocations / nrOfElements; ++i)
 			{
 				auto currentAdress = bufferComponent.GetVirtualAdress(indices[i]);
