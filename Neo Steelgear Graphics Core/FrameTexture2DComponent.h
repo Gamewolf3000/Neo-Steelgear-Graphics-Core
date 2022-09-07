@@ -64,6 +64,8 @@ public:
 	void ChangeToState(const ResourceIndex& resourceIndex,
 		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState);
+	void TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
+		D3D12_RESOURCE_STATES newState);
 
 	TextureHandle GetTextureHandle(const ResourceIndex& index);
 	const TextureHandle GetTextureHandle(const ResourceIndex& index) const;
@@ -282,6 +284,13 @@ inline void FrameTexture2DComponent<Frames>::ChangeToState(
 			this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
 				resourceIndex, newState));
 	}
+}
+
+template<FrameType Frames>
+inline void FrameTexture2DComponent<Frames>::TransitionAllTextures(
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState)
+{
+	this->resourceComponents[this->activeFrame].TransitionAllTextures(barriers, newState);
 }
 
 template<FrameType Frames>

@@ -91,4 +91,7 @@ public:
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIndex& resourceIndex,
 		D3D12_RESOURCE_STATES newState,
 		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+	void TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
+		D3D12_RESOURCE_STATES newState, 
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
 };

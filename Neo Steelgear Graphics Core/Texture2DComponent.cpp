@@ -230,3 +230,10 @@ D3D12_RESOURCE_BARRIER Texture2DComponent::CreateTransitionBarrier(
 	return textureAllocator.CreateTransitionBarrier(
 		resourceIndex.allocatorIdentifier, newState, flag);
 }
+
+void Texture2DComponent::TransitionAllTextures(
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers,
+	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+{
+	textureAllocator.TransitionAllTextures(barriers, newState, flag);
+}

@@ -210,3 +210,21 @@ D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(
 
 	return toReturn;
 }
+
+void TextureAllocator::TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
+	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+{
+	for (size_t chunkIndex = 0; chunkIndex < memoryChunks.size(); ++chunkIndex)
+	{
+		size_t nrOfTextures = memoryChunks[chunkIndex].textures.NrOfAllocatedChunks();
+		for (size_t textureIndex = 0; textureIndex < nrOfTextures; ++textureIndex)
+		{
+			ResourceIdentifier identifier;
+			identifier.heapChunkIndex = chunkIndex;
+			identifier.internalIndex = textureIndex;
+			D3D12_RESOURCE_BARRIER toAdd = CreateTransitionBarrier(identifier,
+				newState, flag);
+			barriers.push_back(toAdd);
+		}
+	}
+}
