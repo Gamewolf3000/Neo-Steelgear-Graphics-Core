@@ -225,15 +225,17 @@ D3D12_RESOURCE_STATES Texture2DComponent::GetCurrentState(
 
 D3D12_RESOURCE_BARRIER Texture2DComponent::CreateTransitionBarrier(
 	const ResourceIndex& resourceIndex, D3D12_RESOURCE_STATES newState, 
-	D3D12_RESOURCE_BARRIER_FLAGS flag)
+	D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
 	return textureAllocator.CreateTransitionBarrier(
-		resourceIndex.allocatorIdentifier, newState, flag);
+		resourceIndex.allocatorIdentifier, newState, flag, assumedInitialState);
 }
 
 void Texture2DComponent::TransitionAllTextures(
 	std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
-	textureAllocator.TransitionAllTextures(barriers, newState, flag);
+	textureAllocator.TransitionAllTextures(barriers, newState, flag, assumedInitialState);
 }

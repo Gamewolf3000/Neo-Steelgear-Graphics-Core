@@ -90,8 +90,10 @@ public:
 	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIndex& resourceIndex);
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIndex& resourceIndex,
 		D3D12_RESOURCE_STATES newState,
-		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 	void TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState, 
-		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 };

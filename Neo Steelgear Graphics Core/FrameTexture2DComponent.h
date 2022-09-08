@@ -63,9 +63,11 @@ public:
 	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIndex& resourceIndex);
 	void ChangeToState(const ResourceIndex& resourceIndex,
 		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-		D3D12_RESOURCE_STATES newState);
+		D3D12_RESOURCE_STATES newState,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 	void TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-		D3D12_RESOURCE_STATES newState);
+		D3D12_RESOURCE_STATES newState,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 
 	TextureHandle GetTextureHandle(const ResourceIndex& index);
 	const TextureHandle GetTextureHandle(const ResourceIndex& index) const;
@@ -274,23 +276,21 @@ inline D3D12_RESOURCE_STATES FrameTexture2DComponent<Frames>::GetCurrentState(
 template<FrameType Frames>
 inline void FrameTexture2DComponent<Frames>::ChangeToState(
 	const ResourceIndex& resourceIndex,
-	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState)
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
-	auto currentState =
-		this->resourceComponents[this->activeFrame].GetCurrentState(resourceIndex);
-	if (newState != currentState)
-	{
-		barriers.push_back(
-			this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
-				resourceIndex, newState));
-	}
+	barriers.push_back(
+		this->resourceComponents[this->activeFrame].CreateTransitionBarrier(
+			resourceIndex, newState, D3D12_RESOURCE_BARRIER_FLAG_NONE, assumedInitialState));
 }
 
 template<FrameType Frames>
 inline void FrameTexture2DComponent<Frames>::TransitionAllTextures(
-	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState)
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES newState,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
-	this->resourceComponents[this->activeFrame].TransitionAllTextures(barriers, newState);
+	this->resourceComponents[this->activeFrame].TransitionAllTextures(
+		barriers, newState, D3D12_RESOURCE_BARRIER_FLAG_NONE, assumedInitialState);
 }
 
 template<FrameType Frames>

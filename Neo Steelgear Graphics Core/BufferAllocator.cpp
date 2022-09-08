@@ -162,7 +162,8 @@ void BufferAllocator::DeallocateBuffer(const ResourceIdentifier& identifier)
 }
 
 void BufferAllocator::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
-	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag)
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
 	for (auto& memoryChunk : memoryChunks)
 	{
@@ -172,8 +173,16 @@ void BufferAllocator::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
 		toAdd.Flags = flag;
 		toAdd.Transition.pResource = memoryChunk.resource;
 		toAdd.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		toAdd.Transition.StateBefore = memoryChunk.currentState;
 		toAdd.Transition.StateAfter = newState;
+
+		if (assumedInitialState.has_value())
+		{
+			toAdd.Transition.StateBefore = assumedInitialState.value();
+		}
+		else
+		{
+			toAdd.Transition.StateBefore = memoryChunk.currentState;
+		}
 
 		memoryChunk.currentState = newState;
 		barriers.push_back(toAdd);

@@ -192,7 +192,8 @@ D3D12_RESOURCE_STATES TextureAllocator::GetCurrentState(const ResourceIdentifier
 
 D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(
 	const ResourceIdentifier& identifier, D3D12_RESOURCE_STATES newState,
-	D3D12_RESOURCE_BARRIER_FLAGS flag)
+	D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
 	auto& textureEntry = 
 		memoryChunks[identifier.heapChunkIndex].textures[identifier.internalIndex];
@@ -203,16 +204,25 @@ D3D12_RESOURCE_BARRIER TextureAllocator::CreateTransitionBarrier(
 	toReturn.Flags = flag;
 	toReturn.Transition.pResource = textureEntry.resource;
 	toReturn.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	toReturn.Transition.StateBefore = textureEntry.currentState;
 	toReturn.Transition.StateAfter = newState;
 
-	textureEntry.currentState = newState;
+	if (assumedInitialState.has_value())
+	{
+		toReturn.Transition.StateBefore = assumedInitialState.value();
+	}
+	else
+	{
+		toReturn.Transition.StateBefore = textureEntry.currentState;
+	}
 
+	textureEntry.currentState = newState;
+	
 	return toReturn;
 }
 
 void TextureAllocator::TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag)
+	D3D12_RESOURCE_STATES newState, D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
 	for (size_t chunkIndex = 0; chunkIndex < memoryChunks.size(); ++chunkIndex)
 	{
@@ -223,7 +233,7 @@ void TextureAllocator::TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>
 			identifier.heapChunkIndex = chunkIndex;
 			identifier.internalIndex = textureIndex;
 			D3D12_RESOURCE_BARRIER toAdd = CreateTransitionBarrier(identifier,
-				newState, flag);
+				newState, flag, assumedInitialState);
 			barriers.push_back(toAdd);
 		}
 	}

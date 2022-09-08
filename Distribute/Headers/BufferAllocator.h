@@ -67,7 +67,8 @@ public:
 
 	void CreateTransitionBarrier(D3D12_RESOURCE_STATES newState, 
 		std::vector<D3D12_RESOURCE_BARRIER>& barriers,
-		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 
 	unsigned char* GetMappedPtr(const ResourceIdentifier& identifier);
 	BufferHandle GetHandle(const ResourceIdentifier& identifier);

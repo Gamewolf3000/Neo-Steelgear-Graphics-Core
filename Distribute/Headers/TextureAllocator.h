@@ -142,15 +142,14 @@ public:
 
 	D3D12_RESOURCE_BARRIER CreateTransitionBarrier(const ResourceIdentifier& identifier,
 		D3D12_RESOURCE_STATES newState,
-		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt);
 	void TransitionAllTextures(std::vector<D3D12_RESOURCE_BARRIER>& barriers,
 		D3D12_RESOURCE_STATES newState,
-		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		D3D12_RESOURCE_BARRIER_FLAGS flag = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		std::optional<D3D12_RESOURCE_STATES> assumedInitialState = std::nullopt); //FORTSÄTT HÄR!!!
 
 	TextureHandle GetHandle(const ResourceIdentifier& identifier);
 	const TextureHandle GetHandle(const ResourceIdentifier& identifier) const;
 	D3D12_RESOURCE_STATES GetCurrentState(const ResourceIdentifier& identifier);
-
-	//size_t GetMaxIndex();
-	//bool CheckIfActive(size_t index);
 };

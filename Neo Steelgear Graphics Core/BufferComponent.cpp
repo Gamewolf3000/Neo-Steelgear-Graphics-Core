@@ -317,9 +317,10 @@ D3D12_RESOURCE_STATES BufferComponent::GetCurrentState()
 }
 
 void BufferComponent::CreateTransitionBarrier(D3D12_RESOURCE_STATES newState,
-	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag)
+	std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_BARRIER_FLAGS flag,
+	std::optional<D3D12_RESOURCE_STATES> assumedInitialState)
 {
-	return bufferAllocator.CreateTransitionBarrier(newState, barriers, flag);
+	return bufferAllocator.CreateTransitionBarrier(newState, barriers, flag, assumedInitialState);
 }
 
 void BufferComponent::UpdateMappedBuffer(const ResourceIndex& resourceIndex, void* data)
