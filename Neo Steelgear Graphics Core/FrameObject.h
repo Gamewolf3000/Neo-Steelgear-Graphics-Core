@@ -28,9 +28,14 @@ public:
 	void Initialize(const std::function<void(FrameType, T&)> initFunc);
 	void Initialize(const std::function<void(T&)> initFunc);
 
-	template<typename... InitializationTypes>
-	void Initialize(void(T::*func)(InitializationTypes...),
-		InitializationTypes... initializationArgument);
+	template<typename U = T, typename... InitializationTypes,
+		typename = std::enable_if_t<std::is_class<U>::value>>
+		void Initialize(void(U::* func)(InitializationTypes...),
+			InitializationTypes... initializationArgument)
+	{
+		for (auto& object : frameObjects)
+			(object.*(func))(initializationArgument...);
+	}
 };
 
 template<typename T, std::uint8_t Frames>
@@ -42,7 +47,7 @@ inline T& FrameObject<T, Frames>::Active()
 template<typename T, std::uint8_t Frames>
 inline T& FrameObject<T, Frames>::Next()
 {
-	std::uint8_t nextFrame = (this->activeFrame + 1 == Frames) ? 0 : 
+	std::uint8_t nextFrame = (this->activeFrame + 1 == Frames) ? 0 :
 		this->activeFrame + 1;
 	return frameObjects[nextFrame];
 }
@@ -50,7 +55,7 @@ inline T& FrameObject<T, Frames>::Next()
 template<typename T, std::uint8_t Frames>
 inline T& FrameObject<T, Frames>::Last()
 {
-	std::uint8_t lastFrame = (this->activeFrame == 0) ? Frames - 1 : 
+	std::uint8_t lastFrame = (this->activeFrame == 0) ? Frames - 1 :
 		this->activeFrame - 1;
 	return frameObjects[lastFrame];
 }
@@ -69,14 +74,4 @@ inline void FrameObject<T, Frames>::Initialize(
 {
 	for (FrameType i = 0; i < Frames; ++i)
 		initFunc(frameObjects[i]);
-}
-
-template<typename T, FrameType Frames>
-template<typename ...InitializationTypes>
-inline void FrameObject<T, Frames>::Initialize(
-	void(T::*func)(InitializationTypes...),
-	InitializationTypes... initializationArgument)
-{
-	for (auto& object : frameObjects)
-		(object.*(func))(initializationArgument...);
 }
