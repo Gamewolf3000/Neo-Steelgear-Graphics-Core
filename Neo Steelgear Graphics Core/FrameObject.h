@@ -22,8 +22,11 @@ public:
 	FrameObject& operator=(FrameObject&& other) = default;
 
 	T& Active();
+	const T& Active() const;
 	T& Next();
+	const T& Next() const;
 	T& Last();
+	const T& Last() const;
 
 	void Initialize(const std::function<void(FrameType, T&)> initFunc);
 	void Initialize(const std::function<void(T&)> initFunc);
@@ -45,6 +48,12 @@ inline T& FrameObject<T, Frames>::Active()
 }
 
 template<typename T, std::uint8_t Frames>
+inline const T& FrameObject<T, Frames>::Active() const
+{
+	return frameObjects[this->activeFrame];
+}
+
+template<typename T, std::uint8_t Frames>
 inline T& FrameObject<T, Frames>::Next()
 {
 	std::uint8_t nextFrame = (this->activeFrame + 1 == Frames) ? 0 :
@@ -53,7 +62,23 @@ inline T& FrameObject<T, Frames>::Next()
 }
 
 template<typename T, std::uint8_t Frames>
+inline const T& FrameObject<T, Frames>::Next() const
+{
+	std::uint8_t nextFrame = (this->activeFrame + 1 == Frames) ? 0 :
+		this->activeFrame + 1;
+	return frameObjects[nextFrame];
+}
+
+template<typename T, std::uint8_t Frames>
 inline T& FrameObject<T, Frames>::Last()
+{
+	std::uint8_t lastFrame = (this->activeFrame == 0) ? Frames - 1 :
+		this->activeFrame - 1;
+	return frameObjects[lastFrame];
+}
+
+template<typename T, std::uint8_t Frames>
+inline const T& FrameObject<T, Frames>::Last() const
 {
 	std::uint8_t lastFrame = (this->activeFrame == 0) ? Frames - 1 :
 		this->activeFrame - 1;
