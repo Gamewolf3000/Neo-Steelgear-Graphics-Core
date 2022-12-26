@@ -19,8 +19,12 @@ void InternalBufferComponentData::HandleInitializeOnlyUpdate(
 		bool result = uploader.UploadBufferResourceData(handle.resource,
 			commandList, source, handle.startOffset, headers[i].dataSize,
 			componentAlignment);
+
 		if (!result)
-			headers[i].specifics.framesLeft += nrOfFrames; // Let it loop, not the best solution
+		{
+			updateNeeded = true;
+			headers[i].specifics.framesLeft += nrOfFrames;
+		}
 
 		--headers[i].specifics.framesLeft;
 

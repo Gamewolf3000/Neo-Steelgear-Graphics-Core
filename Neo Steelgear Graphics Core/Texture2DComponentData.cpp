@@ -286,10 +286,18 @@ void Texture2DComponentData::UpdateComponentResources(
 			bool result = uploader.UploadTextureResourceData(handle.resource, commandList,
 				source, uploadInfo, j);
 
-			if(result == false && type == UpdateType::COPY_UPDATE)
+			if (result == false && type == UpdateType::COPY_UPDATE)
+			{
+				updateNeeded = true;
+				headers[i].specifics.needUpdating = true;
 				throw std::runtime_error("Could not update data for texture2D component");
+			}
 			else if (result == false && type == UpdateType::INITIALISE_ONLY)
+			{
+				updateNeeded = true; // At least one update left for next frame
+				headers[i].specifics.needUpdating = true;
 				subresource.framesLeft += nrOfFrames;
+			}
 
 			--subresource.framesLeft;
 		}
