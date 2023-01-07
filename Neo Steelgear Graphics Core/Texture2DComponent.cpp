@@ -17,7 +17,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Texture2DComponent::CreateSRV(
 		toReturn.Texture2D.PlaneSlice = desc.planeSlice;
 		toReturn.Texture2D.ResourceMinLODClamp = desc.resourceMinLODClamp;
 	}
-	else
+	else if (desc.isTextureCube == false)
 	{
 		toReturn.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
 		toReturn.Texture2DArray.MostDetailedMip = desc.mostDetailedMip;
@@ -28,6 +28,22 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Texture2DComponent::CreateSRV(
 		toReturn.Texture2DArray.ArraySize = arraySize;
 		toReturn.Texture2DArray.PlaneSlice = desc.planeSlice;
 		toReturn.Texture2DArray.ResourceMinLODClamp = desc.resourceMinLODClamp;
+	}
+	else if (handle.dimensions.depthOrArraySize == 6)
+	{
+		toReturn.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		toReturn.TextureCube.MostDetailedMip = desc.mostDetailedMip;
+		toReturn.TextureCube.MipLevels = desc.mipLevels;
+		toReturn.TextureCube.ResourceMinLODClamp = desc.resourceMinLODClamp;
+	}
+	else
+	{
+		toReturn.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+		toReturn.TextureCubeArray.MostDetailedMip = desc.mostDetailedMip;
+		toReturn.TextureCubeArray.MipLevels = desc.mipLevels;
+		toReturn.TextureCubeArray.First2DArrayFace = desc.firstArraySlice;
+		toReturn.TextureCubeArray.NumCubes = desc.arraySize / 6;
+		toReturn.TextureCubeArray.ResourceMinLODClamp = desc.resourceMinLODClamp;
 	}
 
 	return toReturn;

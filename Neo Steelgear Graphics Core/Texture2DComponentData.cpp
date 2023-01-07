@@ -294,7 +294,7 @@ void Texture2DComponentData::UpdateComponentResources(
 			}
 			else if (result == false && type == UpdateType::INITIALISE_ONLY)
 			{
-				updateNeeded = true; // At least one update left for next frame
+				updateNeeded = true;
 				headers[i].specifics.needUpdating = true;
 				subresource.framesLeft += nrOfFrames;
 			}

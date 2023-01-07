@@ -14,6 +14,8 @@ struct Texture2DShaderResourceDesc
 
 	unsigned int firstArraySlice = 0;
 	unsigned int arraySize = static_cast<unsigned int>(-1);
+	
+	bool isTextureCube = false;
 };
 
 struct Texture2DUnorderedAccessDesc
